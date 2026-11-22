@@ -14,7 +14,8 @@ import {
 } from './model'
 
 const text = (s: string) => ({ standard: s, easy: s })
-const base = { title: text('T'), prompt: text('P'), hints: [text('H')], reward: text('R') }
+const item = { at: [0, 0] as [number, number], paths: [{ d: 'M0 0h32v32H0Z', fill: '#000' }] }
+const base = { title: text('T'), prompt: text('P'), hints: [text('H')], reward: text('R'), item }
 const puzzle: Puzzle = { ...base, id: 'p', kind: 'puzzle', pieces: [text('a'), text('b'), text('c')], solution: [2, 0, 1] }
 const estimate: Estimate = { ...base, id: 'e', kind: 'estimate', target: 120, unit: 'Kekse', tolerancePercent: 10 }
 const dilemma: Dilemma = {
@@ -94,6 +95,7 @@ describe('validateMinigames', () => {
     ['empty easy text', [{ ...estimate, hints: [{ standard: 'H', easy: '' }] }]],
     ['no hint', [{ ...estimate, hints: [] }]],
     ['empty reward', [{ ...estimate, reward: text('') }]],
+    ['reward without item art', [{ ...estimate, item: { ...item, paths: [] } }]],
     ['solution repeats a piece', [{ ...puzzle, solution: [0, 0, 1] }]],
     ['solution misses a piece', [{ ...puzzle, solution: [1, 0] }]],
     ['solution out of range', [{ ...puzzle, solution: [3, 0, 1] }]],

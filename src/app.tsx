@@ -6,12 +6,14 @@ import { focusHeading } from './focus'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { PlaceMap } from './screens/PlaceMap'
+import { Collection } from './screens/Collection'
 import type { Screen, ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
   start: GroupStart,
   roles: GroupRoles,
   map: PlaceMap,
+  collection: Collection,
 }
 
 export function App() {
