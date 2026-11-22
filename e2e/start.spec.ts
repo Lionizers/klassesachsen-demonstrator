@@ -6,6 +6,8 @@ const HEADING = 'Demonstrator der Lionizers GmbH'
 test('AE2: start page shows the Lionizers demonstrator heading', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1, name: HEADING })).toBeVisible()
+  await expect(page.locator('body')).not.toContainText(/Schl[öo]sser|SBG|Burgen und G[äa]rten/i)
+  await expect(page).not.toHaveTitle(/Schl[öo]sser|SBG/i)
 })
 
 test('AE3: app is installable (manifest fields, active service worker)', async ({ page, request }) => {
