@@ -52,6 +52,10 @@ export function PlaceView({ place, onBack }: Props) {
     let timer: ReturnType<typeof setTimeout>
     el.srcObject = stream
     el.play().catch(() => setMessage('Das Kamerabild konnte nicht gestartet werden.'))
+    const scanFailed = () => {
+      setStream(undefined)
+      setMessage('Der QR-Code konnte nicht gelesen werden. Gebt den Code ein.')
+    }
     qrReader()
       .then((read) => {
         const tick = async () => {
@@ -59,15 +63,13 @@ export function PlaceView({ place, onBack }: Props) {
           // Frames are only readable once the video has data.
           const text = el.readyState >= 2 ? await read(el) : undefined
           if (stopped) return
-          if (text === undefined) timer = setTimeout(tick, 250)
+          // Later ticks run outside this promise chain, so they need their own error handler.
+          if (text === undefined) timer = setTimeout(() => tick().catch(scanFailed), 250)
           else tryCode(text)
         }
         return tick()
       })
-      .catch(() => {
-        setStream(undefined)
-        setMessage('Der QR-Code konnte nicht gelesen werden. Gebt den Code ein.')
-      })
+      .catch(scanFailed)
     return () => {
       stopped = true
       clearTimeout(timer)
@@ -76,6 +78,11 @@ export function PlaceView({ place, onBack }: Props) {
   }, [stream])
 
   function checkPosition() {
+    if (!navigator.geolocation) {
+      setDenied(true)
+      setMessage('Dieses Gerät kann den Standort nicht bestimmen.')
+      return
+    }
     setMessage('Standort wird geprüft …')
     navigator.geolocation.getCurrentPosition(
       // Only the yes/no result is kept; the coordinates are dropped here.

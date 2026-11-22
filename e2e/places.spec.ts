@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import QRCode from 'qrcode'
 import { EARTH_RADIUS_M } from '../src/places/geo'
 import { PLACES } from '../src/places/places'
+import { DB_NAME, STORE } from '../src/store/db'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const funkelfels = PLACES.find((p) => p.id === 'funkelfels')!
@@ -67,12 +68,12 @@ async function backToMapShows(page: Page, label: string) {
 
 async function dumpStore(page: Page) {
   return page.evaluate(
-    () =>
+    ([db, storeName]) =>
       new Promise<Record<string, unknown>>((resolve, reject) => {
-        const open = indexedDB.open('klassesachsen')
+        const open = indexedDB.open(db)
         open.onerror = () => reject(open.error)
         open.onsuccess = () => {
-          const store = open.result.transaction('kv').objectStore('kv')
+          const store = open.result.transaction(storeName).objectStore(storeName)
           const keys = store.getAllKeys()
           const values = store.getAll()
           values.onsuccess = () =>
@@ -80,6 +81,7 @@ async function dumpStore(page: Page) {
           values.onerror = () => reject(values.error)
         }
       }),
+   [DB_NAME, STORE],
   )
 }
 
@@ -202,4 +204,50 @@ test('AE8: no position is stored or sent, only that the place was reached', asyn
   await expect(page.getByText('Station erreicht!')).toBeVisible()
   expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, progress: { funkelfels: 'started' } })
   expect(sent).toEqual([])
+})
+
+test('a scan error after the first frames is reported, not swallowed', async ({ page }) => {
+  await page.addInitScript(() => {
+    let calls = 0
+    ;(window as unknown as Record<string, unknown>).BarcodeDetector = class {
+      static async getSupportedFormats() { return ['qr_code'] }
+      async detect() {
+        calls += 1
+        if (calls < 3) return []
+        throw new Error('detector crashed')
+      }
+    }
+  })
+  await fakeCamera(page, {})
+  await openFunkelfels(page)
+  await page.getByRole('button', { name: 'QR-Code scannen' }).click()
+  await expect(page.getByText('Der QR-Code konnte nicht gelesen werden. Gebt den Code ein.')).toBeVisible()
+})
+
+test('a device without geolocation offers the classroom mode', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true })
+  })
+  await openFunkelfels(page)
+  await page.getByRole('button', { name: 'Standort prüfen' }).click()
+  await expect(page.getByText('Dieses Gerät kann den Standort nicht bestimmen.')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Im Klassenzimmer spielen' })).toBeVisible()
+})
+
+test('saving the reached place fails: the place screen says so', async ({ page }) => {
+  await page.addInitScript(`
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function () {
+      const request = put.apply(this, arguments)
+      const tx = this.transaction
+      if (window.failPut) request.addEventListener('success', () => tx.abort())
+      return request
+    }
+  `)
+  await openFunkelfels(page)
+  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByText('Der Fortschritt konnte nicht gespeichert werden.')).toBeVisible()
+  await expect(page.getByText('Station erreicht!')).toHaveCount(0)
 })
