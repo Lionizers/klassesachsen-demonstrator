@@ -6,7 +6,6 @@ import { focusHeading } from './focus'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { Place } from './minigames/Place'
-import { focusHeading } from './focus'
 import { PlaceMap } from './screens/PlaceMap'
 import type { Screen, ScreenProps } from './screens/types'
 
