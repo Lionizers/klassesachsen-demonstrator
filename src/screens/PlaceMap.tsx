@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { PLACES, type Place, type PlaceId } from '../places/places'
-import { loadProgress, type Progress, type Status } from '../places/progress'
+import { loadProgress, mapProgress, type Progress, type Status } from '../places/progress'
+import { MINIGAMES_KEY, type Progress as GameProgress } from '../minigames/progress'
+import { load } from '../store/db'
 import { PlaceView } from './PlaceView'
 import { focusHeading } from '../focus'
 import type { ScreenProps } from './types'
@@ -54,7 +56,7 @@ function MapArt() {
   )
 }
 
-export function PlaceMap({ go }: ScreenProps) {
+export function PlaceMap({ go, group }: ScreenProps) {
   // Empty until loaded: every place reads as open, so the heading is there for focus right away.
   const [progress, setProgress] = useState<Progress>({})
   const [selected, setSelected] = useState<Place>()
@@ -62,9 +64,9 @@ export function PlaceMap({ go }: ScreenProps) {
 
   useEffect(() => {
     if (selected) return
-    loadProgress().then(
-      (loaded) => {
-        setProgress(loaded)
+    Promise.all([loadProgress(), load<GameProgress>(MINIGAMES_KEY)]).then(
+      ([places, games]) => {
+        setProgress(mapProgress(places, games))
         setError(undefined)
       },
       () => setError('Der Spielstand konnte nicht geladen werden.'),
@@ -76,7 +78,7 @@ export function PlaceMap({ go }: ScreenProps) {
     focusHeading()
   }
 
-  if (selected) return <PlaceView place={selected} onBack={() => show(undefined)} />
+  if (selected) return <PlaceView place={selected} group={group} onBack={() => show(undefined)} />
   return (
     <section aria-labelledby="map-title">
       <h2 id="map-title" tabIndex={-1}>Karte der Spielregion</h2>

@@ -5,14 +5,12 @@ import { load } from './store/db'
 import { focusHeading } from './focus'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
-import { Place } from './minigames/Place'
 import { PlaceMap } from './screens/PlaceMap'
 import type { Screen, ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
   start: GroupStart,
   roles: GroupRoles,
-  place: Place,
   map: PlaceMap,
 }
 

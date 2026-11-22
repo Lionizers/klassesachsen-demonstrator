@@ -4,13 +4,15 @@ import { isWithinRadius } from '../places/geo'
 import { setStatus } from '../places/progress'
 import { qrReader } from '../places/qr'
 import { focusHeading } from '../focus'
+import type { Group } from '../group'
+import { Place as Minigames } from '../minigames/Place'
 
 const RADIUS_M = 100
 const WRONG_PLACE = 'Das ist ein anderer Ort. Sucht das Schild von diesem Ort.'
 
-type Props = { place: Place; onBack: () => void }
+type Props = { place: Place; group: Group | undefined; onBack: () => void }
 
-export function PlaceView({ place, onBack }: Props) {
+export function PlaceView({ place, group, onBack }: Props) {
   const [reached, setReached] = useState(false)
   const [denied, setDenied] = useState(false)
   const [message, setMessage] = useState('')
@@ -127,6 +129,7 @@ export function PlaceView({ place, onBack }: Props) {
     )
   }
 
+  if (reached && place.id === 'funkelfels') return <Minigames group={group} onBack={onBack} />
   return (
     <section aria-labelledby="place-title">
       <h2 id="place-title" tabIndex={-1}>{place.name}</h2>
@@ -135,7 +138,7 @@ export function PlaceView({ place, onBack }: Props) {
       <p role="status" class={reached ? 'success' : undefined}>{reached ? 'Station erreicht!' : message}</p>
       {reached ? (
         <>
-          <p>Hier beginnt eure Aufgabe an diesem Ort.</p>
+          <p>Hier entstehen weitere Minigames.</p>
           <button type="button" onClick={finish}>Aufgabe erledigt</button>
         </>
       ) : (

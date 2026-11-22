@@ -125,3 +125,10 @@ test('round changes are announced to screen readers', async ({ page }) => {
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByText(/^Runde 1\./)).toHaveAttribute('aria-live', 'polite')
 })
+
+test('quest AE6: the group screen leads only to the map, not directly to a place', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await expect(page.getByRole('button', { name: 'Zur Karte' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /erkunden/ })).toHaveCount(0)
+})
