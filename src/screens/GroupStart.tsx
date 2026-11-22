@@ -5,18 +5,24 @@ import type { ScreenProps } from './types'
 
 export function GroupStart({ go }: ScreenProps) {
   const [name, setName] = useState('')
-  const [touched, setTouched] = useState(false)
+  const [saveError, setSaveError] = useState<string>()
   const error = validateName(name)
 
   async function create(groupName: string) {
     const group: Group = { name: groupName.trim(), round: 0 }
-    await save('group', group)
+    try {
+      await save('group', group)
+    } catch {
+      setSaveError('Die Gruppe konnte nicht gespeichert werden.')
+      return
+    }
     go('roles')
   }
 
   return (
     <section aria-labelledby="start-title">
       <h2 id="start-title">Wie heißt eure Gruppe?</h2>
+      {saveError && <p role="alert">{saveError}</p>}
       <p>Ihr braucht kein Konto. Wählt einen Namen für eure Gruppe.</p>
       <ul aria-label="Vorschläge" class="choices">
         {SUGGESTED_NAMES.map((n) => (
@@ -37,12 +43,9 @@ export function GroupStart({ go }: ScreenProps) {
           id="own-name"
           aria-describedby="own-name-hint own-name-error"
           value={name}
-          onInput={(e) => {
-            setName(e.currentTarget.value)
-            setTouched(true)
-          }}
+          onInput={(e) => setName(e.currentTarget.value)}
         />
-        <p id="own-name-error" class="error" role="status">{touched && error ? error : ''}</p>
+        <p id="own-name-error" class="error" role="status">{error ?? ''}</p>
         <button type="submit" disabled={!!error}>Gruppe anlegen</button>
       </form>
     </section>

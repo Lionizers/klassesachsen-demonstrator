@@ -13,15 +13,20 @@ export function GroupRoles() {
   async function nextRound() {
     if (!group) return
     const next = { ...group, round: group.round + 1 }
-    await save('group', next)
+    try {
+      await save('group', next)
+    } catch {
+      setError('Die neue Runde konnte nicht gespeichert werden.')
+      return
+    }
     setGroup(next)
   }
 
-  if (error) return <p role="alert">{error}</p>
-  if (!group) return null
+  if (!group) return error ? <p role="alert">{error}</p> : null
   return (
     <section aria-labelledby="group-title">
       <h2 id="group-title">Gruppe {group.name}</h2>
+      {error && <p role="alert">{error}</p>}
       <p>Runde {group.round + 1}. Ihr spielt gemeinsam an einem Gerät. Die Rollen wechseln jede Runde.</p>
       <ol aria-label="Rollen in dieser Runde">
         {rolesFor(group.round).map((role, i) => (
