@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { PLACES, type Place, type PlaceId } from '../places/places'
-import { loadProgress, mapProgress, type Progress, type Status } from '../places/progress'
+import { loadProgress, withMinigameStatus, type Progress, type Status } from '../places/progress'
 import { MINIGAMES_KEY, type Progress as GameProgress } from '../minigames/progress'
 import { load } from '../store/db'
 import { PlaceView } from './PlaceView'
@@ -66,7 +66,7 @@ export function PlaceMap({ go, group }: ScreenProps) {
     if (selected) return
     Promise.all([loadProgress(), load<GameProgress>(MINIGAMES_KEY)]).then(
       ([places, games]) => {
-        setProgress(mapProgress(places, games))
+        setProgress(withMinigameStatus(places, games))
         setError(undefined)
       },
       () => setError('Der Spielstand konnte nicht geladen werden.'),

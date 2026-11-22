@@ -1,5 +1,8 @@
 export type PlaceId = 'funkelfels' | 'kruemelbach' | 'wackelstein'
 
+/** The one place that has minigames in the demonstrator. */
+export const MINIGAME_PLACE: PlaceId = 'funkelfels'
+
 /** x/y are percent positions on the map image; lat/lon are fictional, near 0°N 0°E. */
 export type Place = { id: PlaceId; name: string; code: string; lat: number; lon: number; x: number; y: number }
 

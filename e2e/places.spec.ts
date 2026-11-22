@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { EARTH_RADIUS_M } from '../src/places/geo'
 import { PLACES } from '../src/places/places'
 import { DB_NAME, STORE } from '../src/store/db'
+import { FAIL_PUT, failPut } from './fail-put'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const funkelfels = PLACES.find((p) => p.id === 'funkelfels')!
@@ -66,15 +67,6 @@ const openKruemelbach = (page: Page) => openPlace(page, 'Kloster Krümelbach')
 /** Reaching Burg Funkelfels opens its minigames. */
 const stations = (page: Page) => page.getByRole('list', { name: 'Stationen' })
 
-const FAIL_PUT = `
-  const put = IDBObjectStore.prototype.put
-  IDBObjectStore.prototype.put = function () {
-    const request = put.apply(this, arguments)
-    const tx = this.transaction
-    if (window.failPut) request.addEventListener('success', () => tx.abort())
-    return request
-  }
-`
 
 /** Replaces geolocation; `answer` runs inside the page with the success and error callbacks. */
 async function fakeGeolocation(page: Page, answer: string) {
@@ -273,7 +265,7 @@ test('a device without geolocation offers the classroom mode', async ({ page }) 
 test('saving the reached place fails: the place screen says so', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
   await openFunkelfels(page)
-  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await failPut(page)
   await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Der Fortschritt konnte nicht gespeichert werden.')).toBeVisible()
@@ -286,7 +278,7 @@ test('saving the finished task fails: the place screen says so', async ({ page }
   await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Station erreicht!')).toBeVisible()
-  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await failPut(page)
   await page.getByRole('button', { name: 'Aufgabe erledigt' }).click()
   await expect(page.getByRole('alert')).toHaveText('Der Fortschritt konnte nicht gespeichert werden.')
   await expect(page.getByRole('button', { name: 'Aufgabe erledigt' })).toBeVisible()

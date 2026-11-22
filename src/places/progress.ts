@@ -1,7 +1,7 @@
 import { load, save } from '../store/db'
 import { burgFunkelfels } from '../minigames/burg-funkelfels'
 import { initialProgress, placeState, type Progress as GameProgress } from '../minigames/progress'
-import type { PlaceId } from './places'
+import { MINIGAME_PLACE, type PlaceId } from './places'
 
 export type Status = 'open' | 'started' | 'done'
 type StoredStatus = Exclude<Status, 'open'>
@@ -19,8 +19,12 @@ export async function setStatus(id: PlaceId, status: StoredStatus): Promise<void
   await save('progress', { ...progress, [id]: status })
 }
 
-/** Burg Funkelfels follows its minigames once one was begun; its own stored state only says it was reached. */
-export function mapProgress(places: Progress, games: GameProgress | undefined): Progress {
+/**
+ * The minigame place follows its minigames; its own stored state only says it was reached.
+ * A stored „done“ from before the minigames existed must not show it as finished.
+ */
+export function withMinigameStatus(places: Progress, games: GameProgress | undefined): Progress {
   const state = placeState(initialProgress(burgFunkelfels, games))
-  return state === 'new' ? places : { ...places, funkelfels: state }
+  if (state !== 'new') return { ...places, [MINIGAME_PLACE]: state }
+  return places[MINIGAME_PLACE] ? { ...places, [MINIGAME_PLACE]: 'started' } : places
 }

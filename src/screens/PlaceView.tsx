@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { checkCode, type Place } from '../places/places'
+import { MINIGAME_PLACE, checkCode, type Place } from '../places/places'
 import { isWithinRadius } from '../places/geo'
 import { setStatus } from '../places/progress'
 import { qrReader } from '../places/qr'
@@ -129,7 +129,7 @@ export function PlaceView({ place, group, onBack }: Props) {
     )
   }
 
-  if (reached && place.id === 'funkelfels') return <Minigames group={group} onBack={onBack} />
+  if (reached && place.id === MINIGAME_PLACE) return <Minigames group={group} onBack={onBack} />
   return (
     <section aria-labelledby="place-title">
       <h2 id="place-title" tabIndex={-1}>{place.name}</h2>

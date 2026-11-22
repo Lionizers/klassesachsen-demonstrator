@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { DB_NAME, STORE } from '../src/store/db'
 import { GROUP_KEY } from '../src/group'
+import { FAIL_PUT, failPut } from './fail-put'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
@@ -95,21 +96,11 @@ test('saving fails: the group start shows an error instead of failing silently',
 })
 
 test('saving the next round fails: the roles screen shows an error', async ({ page }) => {
-  // Plain JS string: the wrapper must run untranspiled in the page.
-  await page.addInitScript(`
-    const put = IDBObjectStore.prototype.put
-    IDBObjectStore.prototype.put = function () {
-      const request = put.apply(this, arguments)
-      // Like a quota error at commit: the request succeeded, then the transaction aborts.
-      const tx = this.transaction
-      if (window.failPut) request.addEventListener('success', () => tx.abort())
-      return request
-    }
-  `)
+  await page.addInitScript(FAIL_PUT)
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
-  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await failPut(page)
   await page.getByRole('button', { name: 'Neue Runde' }).click()
   await expect(page.getByRole('alert')).toHaveText('Die neue Runde konnte nicht gespeichert werden.')
 })

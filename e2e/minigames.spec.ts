@@ -4,6 +4,7 @@ import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
 import { MINIGAMES_KEY, type Progress } from '../src/minigames/progress'
 import { DB_NAME, STORE } from '../src/store/db'
+import { FAIL_PUT, failPut } from './fail-put'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
@@ -149,16 +150,6 @@ test('stored minigame progress contains no role names after a dilemma vote', asy
   expect(stored).not.toMatch(/Protokoll|Navigation|Recherche|Otter/)
 })
 
-const FAIL_PUT = `
-  const put = IDBObjectStore.prototype.put
-  IDBObjectStore.prototype.put = function () {
-    const request = put.apply(this, arguments)
-    const tx = this.transaction
-    if (window.failPut) request.addEventListener('success', () => tx.abort())
-    return request
-  }
-`
-const failPut = (page: Page) => page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
 
 test('saving progress fails: the place screen shows an error', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
