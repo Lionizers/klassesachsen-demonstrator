@@ -42,7 +42,7 @@ test('AE1: solving the puzzle grants the item and finishes the station', async (
   await axeClean(page)
   await solvePuzzle(page)
   await expect(page.getByText(`Du erhältst: ${puzzle.reward.standard}`)).toBeVisible()
-  await page.getByRole('button', { name: `Zurück zu ${PLACE_NAME}` }).click()
+  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
   await expect(page.getByRole('listitem').filter({ hasText: puzzle.title.standard })).toContainText('geschafft')
   await expect(station(page, puzzle.title.standard)).toHaveCount(0)
 })
@@ -168,7 +168,7 @@ test('focus moves to the heading of every view inside the place', async ({ page 
   await page.getByLabel(`Eure Schätzung (${estimate.unit})`).fill(String(estimate.target))
   await press(page, 'Prüfen')
   await expect(heading(page, `${estimate.title.standard}: geschafft!`)).toBeFocused()
-  await press(page, `Zurück zu ${PLACE_NAME}`)
+  await press(page, `Zurück zur Übersicht von ${PLACE_NAME}`)
   await expect(heading(page, PLACE_NAME)).toBeFocused()
 })
 

@@ -49,7 +49,7 @@ export function Place({ go, group }: ScreenProps) {
         <h2 id="result-title" tabIndex={-1}>{result.game.title.standard}: geschafft!</h2>
         {result.consequence && <p>{result.consequence}</p>}
         <p>Du erhältst: {result.game.reward.standard}</p>
-        <button type="button" onClick={() => show({})}>Zurück zu {PLACE_NAME}</button>
+        <button type="button" onClick={() => show({})}>Zurück zur Übersicht von {PLACE_NAME}</button>
       </section>
     )
   }
