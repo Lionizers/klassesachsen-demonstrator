@@ -1,5 +1,7 @@
 import type { Minigame } from './model'
 
+export const MINIGAMES_KEY = 'minigames'
+
 export type StationStatus = 'open' | 'skipped' | 'done'
 
 /**

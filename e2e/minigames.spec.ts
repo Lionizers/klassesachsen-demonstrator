@@ -2,6 +2,8 @@ import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
+import { MINIGAMES_KEY } from '../src/minigames/progress'
+import { DB_NAME, STORE } from '../src/store/db'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
@@ -93,4 +95,56 @@ test('AE6: a skipped station can be resumed later, also after a reload', async (
   await station(page, puzzle.title.standard).click()
   await solvePuzzle(page)
   await expect(page.getByText(`Du erhältst: ${puzzle.reward.standard}`)).toBeVisible()
+})
+
+async function readStored(page: Page, key: string) {
+  return page.evaluate(
+    ([db, store, k]) =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open(db)
+        open.onerror = () => reject(open.error)
+        open.onsuccess = () => {
+          const get = open.result.transaction(store).objectStore(store).get(k)
+          get.onsuccess = () => resolve(get.result)
+          get.onerror = () => reject(get.error)
+        }
+      }),
+    [DB_NAME, STORE, key],
+  )
+}
+
+test('AE5: a hint request is stored as event E5 at group level', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, estimate.title.standard).click()
+  await page.getByRole('button', { name: 'Fuchs Fidelius um Hilfe bitten' }).click()
+  await expect.poll(async () => {
+    const stored = (await readStored(page, MINIGAMES_KEY)) as { events: { code: string }[] } | undefined
+    return stored?.events.some((e) => e.code === 'E5')
+  }).toBe(true)
+})
+
+test('stored minigame progress contains no role names after a dilemma vote', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, dilemma.title.standard).click()
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: dilemma.options[0].label.standard }).click()
+  await expect(page.getByText(dilemma.options[0].consequence.standard)).toBeVisible()
+  const stored = JSON.stringify(await readStored(page, MINIGAMES_KEY))
+  expect(stored).not.toMatch(/Protokoll|Navigation|Recherche|Otter/)
+})
+
+test('saving progress fails: the place screen shows an error', async ({ page }) => {
+  await page.addInitScript(`
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function () {
+      const request = put.apply(this, arguments)
+      const tx = this.transaction
+      if (window.failPut) request.addEventListener('success', () => tx.abort())
+      return request
+    }
+  `)
+  await enterPlace(page)
+  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  // Opening a station already records E1 and saves.
+  await station(page, estimate.title.standard).click()
+  await expect(page.getByRole('alert')).toHaveText('Der Spielstand konnte nicht gespeichert werden.')
 })

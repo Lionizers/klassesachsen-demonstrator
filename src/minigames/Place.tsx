@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'preact/hooks'
-import { rolesFor, type Group, type Role } from '../group'
+import { rolesFor, type Role } from '../group'
 import { load, save } from '../store/db'
 import type { ScreenProps } from '../screens/types'
 import { GUIDE_NAME, PLACE_NAME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, type Dilemma, type Estimate, type Minigame, type Puzzle } from './model'
-import { initialProgress, placeState, reduceProgress, type Progress, type ProgressAction } from './progress'
+import { MINIGAMES_KEY, initialProgress, placeState, reduceProgress, type Progress, type ProgressAction } from './progress'
 
 const STATUS_LABEL = { open: 'offen', skipped: 'später nachholen', done: 'geschafft' }
 const PLACE_LABEL = { new: 'Noch nicht begonnen.', started: 'Angefangen', done: 'Alle Stationen geschafft!' }
@@ -12,19 +12,15 @@ const PLACE_LABEL = { new: 'Noch nicht begonnen.', started: 'Angefangen', done: 
 type Apply = (...actions: ProgressAction[]) => void
 type Result = { game: Minigame; consequence?: string }
 
-export function Place({ go }: ScreenProps) {
+export function Place({ go, group }: ScreenProps) {
   const [progress, setProgress] = useState<Progress>()
-  const [round, setRound] = useState(0)
   const [active, setActive] = useState<Minigame>()
   const [result, setResult] = useState<Result>()
   const [error, setError] = useState<string>()
 
   useEffect(() => {
-    Promise.all([load<Progress>('minigames'), load<Group>('group')]).then(
-      ([stored, group]) => {
-        setProgress(stored ?? initialProgress(GAMES))
-        setRound(group?.round ?? 0)
-      },
+    load<Progress>(MINIGAMES_KEY).then(
+      (stored) => setProgress(stored ?? initialProgress(GAMES)),
       () => setError('Der Spielstand konnte nicht geladen werden.'),
     )
   }, [])
@@ -35,7 +31,7 @@ export function Place({ go }: ScreenProps) {
   const apply: Apply = (...actions) => {
     const next = actions.reduce(reduceProgress, progress)
     setProgress(next)
-    save('minigames', next).catch(() => setError('Der Spielstand konnte nicht gespeichert werden.'))
+    save(MINIGAMES_KEY, next).catch(() => setError('Der Spielstand konnte nicht gespeichert werden.'))
   }
 
   if (result) {
@@ -54,7 +50,7 @@ export function Place({ go }: ScreenProps) {
       <Station
         key={active.id}
         game={active}
-        roles={rolesFor(round)}
+        roles={rolesFor(group?.round ?? 0)}
         apply={apply}
         onDone={(consequence) => {
           setActive(undefined)
