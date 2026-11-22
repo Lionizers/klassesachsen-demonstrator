@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { rolesFor, type Group, type Role } from '../group'
 import { focusHeading } from '../focus'
 import { load, save } from '../store/db'
+import { ItemImage } from '../collection/ItemArt'
 import { GUIDE_NAME, PLACE_NAME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle } from './model'
 import { MINIGAMES_KEY, countEvents, initialProgress, placeState, reduceProgress, type Progress, type ProgressAction } from './progress'
@@ -139,6 +140,7 @@ function Station({ game, roles, hintsShown, attempts, apply, onDone, onSkip }: S
     <section aria-labelledby="game-title">
       <h2 id="game-title" tabIndex={-1}>{game.title.standard}</h2>
       <p>{game.prompt.standard}</p>
+      <p class="reward"><ItemImage art={game.item} /> Belohnung: {game.reward.standard}</p>
       {gameView()}
       <div aria-live="polite">
         {game.hints.slice(0, hintsShown).map((hint) => (

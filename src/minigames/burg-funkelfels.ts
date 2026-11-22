@@ -37,6 +37,16 @@ export const burgFunkelfels: Minigame[] = [
       },
     ],
     reward: { standard: 'ein glänzendes Messingzahnrad', easy: 'ein glänzendes Zahnrad' },
+    item: {
+      at: [40, 62],
+      paths: [
+        {
+          d: 'M14 1h4v6h-4ZM14 25h4v6h-4ZM1 14h6v4H1ZM25 14h6v4h-6ZM4.7 7.5l2.8-2.8 4.2 4.2-2.8 2.8ZM20.3 23.1l2.8-2.8 4.2 4.2-2.8 2.8ZM4.7 24.5l4.2-4.2 2.8 2.8-4.2 4.2ZM20.3 8.9l4.2-4.2 2.8 2.8-4.2 4.2ZM5 16a11 11 0 1 0 22 0a11 11 0 1 0-22 0Z',
+          fill: '#d4a017',
+        },
+        { d: 'M11 16a5 5 0 1 0 10 0a5 5 0 1 0-10 0Z', fill: '#7a5c0f' },
+      ],
+    },
   },
   {
     id: 'kanonenkugelkiste',
@@ -58,6 +68,14 @@ export const burgFunkelfels: Minigame[] = [
       },
     ],
     reward: { standard: 'ein Keks des Burgkochs mit Zuckerwappen', easy: 'ein Keks vom Burgkoch' },
+    item: {
+      at: [76, 70],
+      paths: [
+        { d: 'M3 16a13 13 0 1 0 26 0a13 13 0 1 0-26 0Z', fill: '#d9a05b' },
+        { d: 'M11 9h10v7c0 4-2.5 6.5-5 8c-2.5-1.5-5-4-5-8Z', fill: '#b23a48' },
+        { d: 'M7 13a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0ZM22 21a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0ZM8 21a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0Z', fill: '#8a5a2b' },
+      ],
+    },
   },
   {
     id: 'drachenbesuch',
@@ -93,5 +111,12 @@ export const burgFunkelfels: Minigame[] = [
       },
     ],
     reward: { standard: 'eine schimmernde Drachenschuppe als Andenken', easy: 'eine Drachenschuppe' },
+    item: {
+      at: [40, 0],
+      paths: [
+        { d: 'M16 2C25 7 29 16 16 30C3 16 7 7 16 2Z', fill: '#2a9d8f' },
+        { d: 'M16 8C21 11 23 17 16 24Z', fill: '#9ee0d6' },
+      ],
+    },
   },
 ]

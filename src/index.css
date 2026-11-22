@@ -30,3 +30,9 @@ label { font-weight: 600; display: block; margin-top: 1rem; }
 .map-places { list-style: none; margin: 0; padding: 0; }
 .map-places li { position: absolute; width: 40%; transform: translate(-50%, 0.25rem); text-align: center; }
 .map-places button { font-size: 0.85rem; padding: 0.3rem 0.5rem; background: #fff; }
+.items { list-style: none; padding: 0; }
+.items li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.5rem 0; }
+.items li.open .item { opacity: 0.45; }
+.reward { display: flex; align-items: center; gap: 0.5rem; }
+.character { display: block; width: min(100%, 10rem); height: auto; margin: 0.5rem 0; }
+button[aria-pressed='true'] { background: var(--brand); color: #fff; }

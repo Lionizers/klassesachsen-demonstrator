@@ -3,7 +3,13 @@ import { ROLES, type Role } from '../group'
 /** `easy` is the same text in plain language. */
 export type Text = { standard: string; easy: string }
 
-type Base = { id: string; title: Text; prompt: Text; hints: Text[]; reward: Text }
+/**
+ * Paths are drawn in an ITEM_BOX square; `at` places that square on the character (see collection/ItemArt).
+ * Plain path data, so the same art renders as SVG and on a canvas via Path2D.
+ */
+export type ItemArt = { at: [number, number]; paths: { d: string; fill: string }[] }
+/** `reward` names the item that `item` draws. */
+type Base = { id: string; title: Text; prompt: Text; hints: Text[]; reward: Text; item: ItemArt }
 /** Pieces are shown in data order; `solution` lists piece indices in the solved order. */
 export type Puzzle = Base & { kind: 'puzzle'; pieces: Text[]; solution: number[] }
 export type Estimate = Base & { kind: 'estimate'; target: number; unit: string; tolerancePercent: number }
@@ -58,6 +64,7 @@ export function validateMinigames(games: Minigame[]): string[] {
     if (seen.has(game.id)) errors.push(`${at} duplicate id`)
     seen.add(game.id)
     if (game.hints.length === 0) errors.push(`${at} needs at least one hint`)
+    if (game.item.paths.length === 0) errors.push(`${at} reward needs item art`)
     for (const t of texts(game)) {
       if (!t.standard.trim() || !t.easy.trim()) errors.push(`${at} empty text ${JSON.stringify(t)}`)
     }
