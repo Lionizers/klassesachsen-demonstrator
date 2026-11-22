@@ -32,7 +32,7 @@ describe('collected', () => {
 describe('wornOf', () => {
   const items = burgFunkelfels.slice(0, 2)
 
-  it('AE6: keeps worn items that are collected', () => {
+  it('keeps worn ids that are collected, in stored order', () => {
     expect(wornOf({ worn: [second, first] }, items)).toEqual([second, first])
   })
 

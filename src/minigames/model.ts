@@ -4,7 +4,7 @@ import { ROLES, type Role } from '../group'
 export type Text = { standard: string; easy: string }
 
 /**
- * Paths are drawn in a 32x32 box; `at` places that box on the character (viewBox 0 0 112 128).
+ * Paths are drawn in an ITEM_BOX square; `at` places that square on the character (see collection/ItemArt).
  * Plain path data, so the same art renders as SVG and on a canvas via Path2D.
  */
 export type ItemArt = { at: [number, number]; paths: { d: string; fill: string }[] }

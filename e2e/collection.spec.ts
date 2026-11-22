@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Estimate } from '../src/minigames/model'
 import { CHARACTER_KEY } from '../src/collection/items'
+import { MINIGAMES_KEY } from '../src/minigames/progress'
 import { DB_NAME, STORE } from '../src/store/db'
 import { FAIL_PUT, failPut } from './fail-put'
 
@@ -148,5 +149,27 @@ test('AE6: a failed save is reported and the collection stays usable', async ({ 
   await failPut(page)
   await toggle(page).click()
   await expect(page.getByRole('alert')).toHaveText('Der Charakter konnte nicht gespeichert werden.')
-  await expect(toggle(page)).toBeVisible()
+  await expect(toggle(page)).toHaveAttribute('aria-pressed', 'false')
+  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = false })
+  await toggle(page).click()
+  await expect.poll(() => readStored(page, CHARACTER_KEY)).toEqual({ worn: [estimate.id] })
+  await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('alert')).toHaveCount(0)
+})
+
+test('a failed load is reported instead of an empty collection', async ({ page }) => {
+  await page.addInitScript(`
+    const get = IDBObjectStore.prototype.get
+    IDBObjectStore.prototype.get = function (key) {
+      if (key === ${JSON.stringify(MINIGAMES_KEY)}) throw new DOMException('read failed', 'UnknownError')
+      return get.apply(this, arguments)
+    }
+  `)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await openCollection(page)
+  await expect(page.getByRole('alert')).toHaveText('Die Sammlung konnte nicht geladen werden.')
+  await expect(page.getByText('Noch nichts gesammelt.')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Zurück zur Gruppe' }).click()
+  await expect(page.getByRole('button', { name: 'Sammlung', exact: true })).toBeVisible()
 })

@@ -1,32 +1,14 @@
 import { useEffect, useState } from 'preact/hooks'
 import { load, save } from '../store/db'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
-import type { ItemArt, Minigame } from '../minigames/model'
+import type { Minigame } from '../minigames/model'
 import { MINIGAMES_KEY, initialProgress, type Progress } from '../minigames/progress'
 import { CHARACTER_KEY, collected, wornOf, type Character } from '../collection/items'
+import { ArtPaths, BODY, CHARACTER_VIEWBOX, ItemImage } from '../collection/ItemArt'
 import type { ScreenProps } from './types'
 
-// Drawn with the same path data as the items, so worn items line up with their `at` box.
-const BODY = [
-  { d: 'M42 106h10v18H42ZM60 106h10v18H60Z', fill: '#2f4b6e' },
-  { d: 'M36 70c0-10 6-14 20-14s20 4 20 14v38H36Z', fill: '#4a7fb5' },
-  { d: 'M36 66l-12 22l6 3l10-16ZM76 66l8 18l-5 3l-7-14Z', fill: '#4a7fb5' },
-  { d: 'M36 36a20 20 0 1 0 40 0a20 20 0 1 0-40 0Z', fill: '#f2c9a0' },
-  { d: 'M47 33a3 3 0 1 0 6 0a3 3 0 1 0-6 0ZM59 33a3 3 0 1 0 6 0a3 3 0 1 0-6 0ZM49 43q7 6 14 0l-1.5-1.5q-5.5 4-11 0Z', fill: '#1b1b1f' },
-]
-
-/** Decorative: the item name is always written next to it. */
-export function ItemImage({ art, size = 32 }: { art: ItemArt; size?: number }) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden="true" class="item">
-      {art.paths.map((p) => <path key={p.d} d={p.d} fill={p.fill} />)}
-    </svg>
-  )
-}
-
 export function Collection({ go }: ScreenProps) {
-  // Empty until loaded, so the heading is there for focus right away.
-  const [items, setItems] = useState<Minigame[]>([])
+  const [items, setItems] = useState<Minigame[]>()
   const [worn, setWorn] = useState<string[]>([])
   const [error, setError] = useState<string>()
 
@@ -44,25 +26,38 @@ export function Collection({ go }: ScreenProps) {
   const toggle = (id: string) => {
     const next = worn.includes(id) ? worn.filter((w) => w !== id) : [...worn, id]
     setWorn(next)
-    save(CHARACTER_KEY, { worn: next } satisfies Character).catch(() => setError('Der Charakter konnte nicht gespeichert werden.'))
+    save(CHARACTER_KEY, { worn: next } satisfies Character).then(
+      () => setError(undefined),
+      () => {
+        // The character shows only what is stored, so a reload brings no surprise.
+        setWorn(worn)
+        setError('Der Charakter konnte nicht gespeichert werden.')
+      },
+    )
   }
+
+  const alert = error && <p role="alert">{error}</p>
+  const heading = <h2 id="collection-title" tabIndex={-1}>Sammlung</h2>
+  const back = <button type="button" onClick={() => go('roles')}>Zurück zur Gruppe</button>
+  // The heading is there before the items, so the focus moved to it on arrival has a target.
+  if (!items) return <section aria-labelledby="collection-title">{alert}{heading}{back}</section>
 
   const wornItems = items.filter((item) => worn.includes(item.id))
   const open = GAMES.filter((game) => !items.includes(game))
   return (
     <section aria-labelledby="collection-title">
-      <h2 id="collection-title" tabIndex={-1}>Sammlung</h2>
-      {error && <p role="alert">{error}</p>}
+      {alert}
+      {heading}
       <svg
-        viewBox="0 0 112 128"
+        viewBox={CHARACTER_VIEWBOX}
         class="character"
         role="img"
         aria-label={wornItems.length ? `Euer Charakter trägt: ${wornItems.map((i) => i.reward.standard).join(', ')}` : 'Euer Charakter trägt noch nichts.'}
       >
-        {BODY.map((p) => <path key={p.d} d={p.d} fill={p.fill} />)}
+        <ArtPaths paths={BODY} />
         {wornItems.map((item) => (
           <g key={item.id} transform={`translate(${item.item.at.join(' ')})`}>
-            {item.item.paths.map((p) => <path key={p.d} d={p.d} fill={p.fill} />)}
+            <ArtPaths paths={item.item.paths} />
           </g>
         ))}
       </svg>
@@ -94,7 +89,7 @@ export function Collection({ go }: ScreenProps) {
           </ul>
         </>
       )}
-      <button type="button" onClick={() => go('roles')}>Zurück zur Gruppe</button>
+      {back}
     </section>
   )
 }
