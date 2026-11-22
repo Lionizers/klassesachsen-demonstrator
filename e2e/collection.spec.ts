@@ -4,6 +4,7 @@ import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Estimate } from '../src/minigames/model'
 import { CHARACTER_KEY } from '../src/collection/items'
 import { DB_NAME, STORE } from '../src/store/db'
+import { FAIL_PUT, failPut } from './fail-put'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'estimate')!
@@ -141,18 +142,10 @@ test('AE6: collection and worn items survive a reload', async ({ page }) => {
 })
 
 test('AE6: a failed save is reported and the collection stays usable', async ({ page }) => {
-  await page.addInitScript(`
-    const put = IDBObjectStore.prototype.put
-    IDBObjectStore.prototype.put = function () {
-      const request = put.apply(this, arguments)
-      const tx = this.transaction
-      if (window.failPut) request.addEventListener('success', () => tx.abort())
-      return request
-    }
-  `)
+  await page.addInitScript(FAIL_PUT)
   await solveEstimate(page)
   await openCollection(page)
-  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await failPut(page)
   await toggle(page).click()
   await expect(page.getByRole('alert')).toHaveText('Der Charakter konnte nicht gespeichert werden.')
   await expect(toggle(page)).toBeVisible()
