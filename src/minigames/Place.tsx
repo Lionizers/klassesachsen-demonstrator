@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
-import { rolesFor, type Role } from '../group'
+import { rolesFor, type Group, type Role } from '../group'
 import { focusHeading } from '../focus'
 import { load, save } from '../store/db'
-import type { ScreenProps } from '../screens/types'
 import { GUIDE_NAME, PLACE_NAME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle } from './model'
 import { MINIGAMES_KEY, countEvents, initialProgress, placeState, reduceProgress, type Progress, type ProgressAction } from './progress'
@@ -13,7 +12,9 @@ const PLACE_LABEL = { new: 'Noch nicht begonnen.', started: 'Angefangen', done: 
 type Apply = (...actions: ProgressAction[]) => void
 type Result = { game: Minigame; consequence?: string }
 
-export function Place({ go, group }: ScreenProps) {
+type Props = { group: Group | undefined; onBack: () => void }
+
+export function Place({ group, onBack }: Props) {
   const [progress, setProgress] = useState<Progress>()
   const [active, setActive] = useState<Minigame>()
   const [result, setResult] = useState<Result>()
@@ -28,7 +29,10 @@ export function Place({ go, group }: ScreenProps) {
 
   // Shown above the still usable view, so a failed save never locks the group out.
   const alert = error && <p role="alert">{error}</p>
-  if (!progress) return alert || null
+  const heading = <h2 id="place-title" tabIndex={-1}>{PLACE_NAME}</h2>
+  const back = <button type="button" onClick={onBack}>Zurück zur Karte</button>
+  // The heading is there before the progress, so the focus moved to it on arrival has a target.
+  if (!progress) return <section aria-labelledby="place-title">{alert}{heading}{back}</section>
 
   const show = (next: { active?: Minigame; result?: Result }) => {
     setActive(next.active)
@@ -80,7 +84,7 @@ export function Place({ go, group }: ScreenProps) {
   return (
     <section aria-labelledby="place-title">
       {alert}
-      <h2 id="place-title" tabIndex={-1}>{PLACE_NAME}</h2>
+      {heading}
       <p>{GUIDE_NAME} begrüßt euch am Burgtor. Wählt eine Station, die Reihenfolge ist euch überlassen.</p>
       <p>
         {PLACE_LABEL[state]}
@@ -109,7 +113,7 @@ export function Place({ go, group }: ScreenProps) {
           )
         })}
       </ul>
-      <button type="button" onClick={() => go('roles')}>Zurück zur Gruppe</button>
+      {back}
     </section>
   )
 }

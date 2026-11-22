@@ -1,6 +1,7 @@
+import { MINIGAME_PLACE, PLACES } from '../places/places'
 import type { Minigame } from './model'
 
-export const PLACE_NAME = 'Burg Funkelfels'
+export const PLACE_NAME = PLACES.find((p) => p.id === MINIGAME_PLACE)!.name
 export const GUIDE_NAME = 'Fuchs Fidelius'
 
 export const burgFunkelfels: Minigame[] = [

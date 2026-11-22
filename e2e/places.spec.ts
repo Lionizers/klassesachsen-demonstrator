@@ -4,6 +4,7 @@ import QRCode from 'qrcode'
 import { EARTH_RADIUS_M } from '../src/places/geo'
 import { PLACES } from '../src/places/places'
 import { DB_NAME, STORE } from '../src/store/db'
+import { FAIL_PUT, failPut } from './fail-put'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const funkelfels = PLACES.find((p) => p.id === 'funkelfels')!
@@ -55,21 +56,18 @@ async function openMap(page: Page) {
   await expect(page.getByRole('heading', { name: 'Karte der Spielregion' })).toBeVisible()
 }
 
-async function openFunkelfels(page: Page) {
+async function openPlace(page: Page, name: string) {
   await openMap(page)
-  await page.getByRole('button', { name: /^Burg Funkelfels/ }).click()
-  await expect(page.getByRole('heading', { name: 'Burg Funkelfels' })).toBeVisible()
+  await page.getByRole('button', { name: new RegExp(`^${name}`) }).click()
+  // The view is settled once its heading has the focus; typing earlier races the view change.
+  await expect(page.getByRole('heading', { name })).toBeFocused()
 }
 
-const FAIL_PUT = `
-  const put = IDBObjectStore.prototype.put
-  IDBObjectStore.prototype.put = function () {
-    const request = put.apply(this, arguments)
-    const tx = this.transaction
-    if (window.failPut) request.addEventListener('success', () => tx.abort())
-    return request
-  }
-`
+const openFunkelfels = (page: Page) => openPlace(page, 'Burg Funkelfels')
+const openKruemelbach = (page: Page) => openPlace(page, 'Kloster Krümelbach')
+/** Reaching Burg Funkelfels opens its minigames. */
+const stations = (page: Page) => page.getByRole('list', { name: 'Stationen' })
+
 
 /** Replaces geolocation; `answer` runs inside the page with the success and error callbacks. */
 async function fakeGeolocation(page: Page, answer: string) {
@@ -119,7 +117,7 @@ test('AE2: scanning the place QR code (BarcodeDetector) reaches the place', asyn
   await openFunkelfels(page)
   await axeClean(page)
   await page.getByRole('button', { name: 'QR-Code scannen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await expect(stations(page)).toBeVisible()
   await axeClean(page)
   await backToMapShows(page, 'Burg Funkelfels – angefangen')
 })
@@ -132,7 +130,7 @@ test('AE2: without BarcodeDetector the QR code is read from camera frames (jsQR)
   await openFunkelfels(page)
   expect(chunks).toEqual([])
   await page.getByRole('button', { name: 'QR-Code scannen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible({ timeout: 10_000 })
+  await expect(stations(page)).toBeVisible({ timeout: 10_000 })
   expect(chunks).toHaveLength(1)
 })
 
@@ -140,7 +138,16 @@ test('AE2: typing the printed code reaches the place', async ({ page }) => {
   await openFunkelfels(page)
   await page.getByLabel('Code vom Schild').fill('funkelfels')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await expect(stations(page)).toBeVisible()
+})
+
+test('quest AE1: reaching Burg Funkelfels by code shows its three stations and is accessible', async ({ page }) => {
+  await openFunkelfels(page)
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(stations(page).getByRole('listitem')).toHaveCount(3)
+  await expect(page.getByText('Hier beginnt eure Aufgabe')).toHaveCount(0)
+  await axeClean(page)
 })
 
 test('AE3: the code of another place is rejected without progress', async ({ page }) => {
@@ -151,7 +158,7 @@ test('AE3: the code of another place is rejected without progress', async ({ pag
   await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Das ist ein anderer Ort')).toBeVisible()
-  await expect(page.getByText('Station erreicht!')).toHaveCount(0)
+  await expect(stations(page)).toHaveCount(0)
   await backToMapShows(page, 'Burg Funkelfels – offen')
 })
 
@@ -160,7 +167,7 @@ test('AE4: GPS within 100 m reaches the place', async ({ page, context }) => {
   await context.setGeolocation(northOf(100))
   await openFunkelfels(page)
   await page.getByRole('button', { name: 'Standort prüfen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await expect(stations(page)).toBeVisible()
 })
 
 test('AE5: GPS at 101 m does not reach the place and offers the QR code', async ({ page, context }) => {
@@ -179,27 +186,29 @@ test('AE6: denied camera offers classroom mode, which leads to the quest', async
   await expect(page.getByRole('button', { name: 'Im Klassenzimmer spielen' })).toHaveCount(0)
   await page.getByRole('button', { name: 'QR-Code scannen' }).click()
   await page.getByRole('button', { name: 'Im Klassenzimmer spielen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await expect(stations(page)).toBeVisible()
 })
 
 test('AE6: denied GPS offers classroom mode, which leads to the quest', async ({ page }) => {
   await openFunkelfels(page)
   await page.getByRole('button', { name: 'Standort prüfen' }).click()
   await page.getByRole('button', { name: 'Im Klassenzimmer spielen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await expect(stations(page)).toBeVisible()
 })
 
-test('a finished place shows as done and stays done when reached again', async ({ page }) => {
-  await openFunkelfels(page)
-  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+test('quest AE5: Kloster Krümelbach keeps the placeholder, can be finished and stays done when reached again', async ({ page }) => {
+  await openKruemelbach(page)
+  await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByText('Hier entstehen weitere Minigames')).toBeVisible()
+  await expect(stations(page)).toHaveCount(0)
   await page.getByRole('button', { name: 'Aufgabe erledigt' }).click()
-  await expect(page.getByRole('button', { name: 'Burg Funkelfels – fertig' })).toBeVisible()
-  await page.getByRole('button', { name: 'Burg Funkelfels – fertig' }).click()
-  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await expect(page.getByRole('button', { name: 'Kloster Krümelbach – fertig' })).toBeVisible()
+  await page.getByRole('button', { name: 'Kloster Krümelbach – fertig' }).click()
+  await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Station erreicht!')).toBeVisible()
-  await backToMapShows(page, 'Burg Funkelfels – fertig')
+  await backToMapShows(page, 'Kloster Krümelbach – fertig')
 })
 
 test('AE7: map image and places stay visible offline', async ({ page, context }) => {
@@ -221,7 +230,7 @@ test('AE8: no position is stored or sent, only that the place was reached', asyn
   const sent: string[] = []
   page.on('request', (r) => sent.push(`${r.method()} ${r.url()} ${r.postData() ?? ''}`))
   await page.getByRole('button', { name: 'Standort prüfen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await expect(stations(page)).toBeVisible()
   expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, progress: { funkelfels: 'started' } })
   expect(sent).toEqual([])
 })
@@ -257,20 +266,20 @@ test('a device without geolocation offers the classroom mode', async ({ page }) 
 test('saving the reached place fails: the place screen says so', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
   await openFunkelfels(page)
-  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await failPut(page)
   await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Der Fortschritt konnte nicht gespeichert werden.')).toBeVisible()
-  await expect(page.getByText('Station erreicht!')).toHaveCount(0)
+  await expect(stations(page)).toHaveCount(0)
 })
 
 test('saving the finished task fails: the place screen says so', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
-  await openFunkelfels(page)
-  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await openKruemelbach(page)
+  await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Station erreicht!')).toBeVisible()
-  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await failPut(page)
   await page.getByRole('button', { name: 'Aufgabe erledigt' }).click()
   await expect(page.getByRole('alert')).toHaveText('Der Fortschritt konnte nicht gespeichert werden.')
   await expect(page.getByRole('button', { name: 'Aufgabe erledigt' })).toBeVisible()
@@ -286,13 +295,21 @@ test('focus follows the view: map heading after "Zur Karte", place heading, map 
 })
 
 test('reaching a place is announced in the same live region and focus stays on the screen', async ({ page }) => {
-  await openFunkelfels(page)
+  await openKruemelbach(page)
   // Marks the region node: a replaced node would not be announced.
   await page.getByRole('status').evaluate((el) => el.setAttribute('data-probe', ''))
-  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByRole('status')).toHaveText('Station erreicht!')
   await expect(page.getByRole('status')).toHaveAttribute('data-probe', '')
+  await expect(page.getByRole('heading', { name: 'Kloster Krümelbach' })).toBeFocused()
+})
+
+test('reaching Burg Funkelfels moves the focus to the heading of its stations', async ({ page }) => {
+  await openFunkelfels(page)
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).press('Enter')
+  await expect(stations(page)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Burg Funkelfels' })).toBeFocused()
 })
 
@@ -321,7 +338,7 @@ test('camera unavailable without denial: message, and the code still works', asy
   await expect(page.getByRole('button', { name: 'Im Klassenzimmer spielen' })).toHaveCount(0)
   await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
-  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await expect(stations(page)).toBeVisible()
 })
 
 test('GPS timeout: the place screen offers the QR code', async ({ page }) => {
@@ -332,9 +349,12 @@ test('GPS timeout: the place screen offers the QR code', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Im Klassenzimmer spielen' })).toHaveCount(0)
 })
 
-test('camera image cannot start: the place screen says so', async ({ page }) => {
+test('camera image cannot start: the place screen says so, and the stopped scan does not overwrite it', async ({ page }) => {
   await page.addInitScript(() => {
     HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('blocked', 'NotAllowedError'))
+    ;(window as unknown as Record<string, unknown>).BarcodeDetector = class {
+      static async getSupportedFormats(): Promise<string[]> { throw new Error('detector unavailable') }
+    }
   })
   await fakeCamera(page, {})
   await openFunkelfels(page)

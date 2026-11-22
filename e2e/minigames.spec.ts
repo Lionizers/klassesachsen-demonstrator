@@ -4,6 +4,7 @@ import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
 import { MINIGAMES_KEY, type Progress } from '../src/minigames/progress'
 import { DB_NAME, STORE } from '../src/store/db'
+import { FAIL_PUT, failPut } from './fail-put'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
@@ -15,11 +16,31 @@ async function axeClean(page: Page) {
   expect(result.violations).toEqual([])
 }
 
+const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
+const mapButton = (page: Page) => page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) })
+
+/** From the group screen over the map to the stations; waits for the heading focus so later key presses are not stolen. */
+async function reachPlace(page: Page) {
+  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
+  await mapButton(page).click()
+  // Typing before the place view has settled (heading focused) races the view change.
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+}
+
 async function enterPlace(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
-  await expect(page.getByRole('heading', { name: PLACE_NAME })).toBeVisible()
+  await reachPlace(page)
+}
+
+async function backToMap(page: Page) {
+  await page.getByRole('button', { name: 'Zurück zur Karte' }).click()
+  await expect(heading(page, 'Karte der Spielregion')).toBeVisible()
 }
 
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
@@ -90,7 +111,7 @@ test('AE6: a skipped station can be resumed later, also after a reload', async (
   await expect(page.getByText('Angefangen')).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: puzzle.title.standard })).toContainText('später nachholen')
   await page.reload()
-  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
+  await reachPlace(page)
   await expect(page.getByText('Angefangen')).toBeVisible()
   await station(page, puzzle.title.standard).click()
   await solvePuzzle(page)
@@ -132,18 +153,11 @@ test('stored minigame progress contains no role names after a dilemma vote', asy
   expect(stored).not.toMatch(/Protokoll|Navigation|Recherche|Otter/)
 })
 
+
 test('saving progress fails: the place screen shows an error', async ({ page }) => {
-  await page.addInitScript(`
-    const put = IDBObjectStore.prototype.put
-    IDBObjectStore.prototype.put = function () {
-      const request = put.apply(this, arguments)
-      const tx = this.transaction
-      if (window.failPut) request.addEventListener('success', () => tx.abort())
-      return request
-    }
-  `)
+  await page.addInitScript(FAIL_PUT)
   await enterPlace(page)
-  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await failPut(page)
   // Opening a station already records E1 and saves.
   await station(page, estimate.title.standard).click()
   await expect(page.getByRole('alert')).toHaveText('Der Spielstand konnte nicht gespeichert werden.')
@@ -155,7 +169,6 @@ const press = async (page: Page, name: string) => {
   // locator.press focuses and presses in one step, so a pending heading focus cannot slip in between.
   await page.getByRole('button', { name, exact: true }).press('Enter')
 }
-const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
 const hintButton = 'Fuchs Fidelius um Hilfe bitten'
 
 test('focus moves to the heading of every view inside the place', async ({ page }) => {
@@ -234,4 +247,63 @@ test('dilemma: the next voting role is announced', async ({ page }) => {
   await station(page, dilemma.title.standard).click()
   await page.getByRole('button', { name: dilemma.options[0].label.standard }).click()
   await expect(page.getByRole('heading', { name: /Navigation stimmt ab/ })).toHaveAttribute('aria-live', 'polite')
+})
+
+async function solveEstimate(page: Page) {
+  await station(page, estimate.title.standard).click()
+  await page.getByLabel(`Eure Schätzung (${estimate.unit})`).fill(String(estimate.target))
+  await page.getByRole('button', { name: 'Prüfen' }).click()
+  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
+}
+
+async function solveDilemma(page: Page) {
+  await station(page, dilemma.title.standard).click()
+  for (let i = 0; i < 3; i++) await page.getByRole('button', { name: dilemma.options[0].label.standard }).click()
+  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
+}
+
+test('quest AE2: a begun minigame shows the place as started on the map', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, puzzle.title.standard).click()
+  await expect(heading(page, puzzle.title.standard)).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(mapButton(page)).toHaveText(`${PLACE_NAME} – angefangen`)
+})
+
+test('quest AE3: all three minigames solved shows the place as done on the map', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, puzzle.title.standard).click()
+  await solvePuzzle(page)
+  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
+  await solveEstimate(page)
+  await solveDilemma(page)
+  await expect(page.getByText('Alle Stationen geschafft!')).toBeVisible()
+  await backToMap(page)
+  await expect(mapButton(page)).toHaveText(`${PLACE_NAME} – fertig`)
+})
+
+test('quest AE4: a skipped minigame keeps the place started, not done', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, puzzle.title.standard).click()
+  await page.getByRole('button', { name: 'Später nachholen' }).click()
+  await solveEstimate(page)
+  await solveDilemma(page)
+  await backToMap(page)
+  await expect(mapButton(page)).toHaveText(`${PLACE_NAME} – angefangen`)
+})
+
+test('quest AE7: saving the place state fails: alert, and the minigame progress is kept', async ({ page }) => {
+  await page.addInitScript(FAIL_PUT)
+  await enterPlace(page)
+  await solveEstimate(page)
+  await backToMap(page)
+  await failPut(page)
+  await mapButton(page).click()
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Der Fortschritt konnte nicht gespeichert werden.')
+  await page.reload()
+  await reachPlace(page)
+  await expect(page.getByRole('listitem').filter({ hasText: estimate.title.standard })).toContainText('geschafft')
 })
