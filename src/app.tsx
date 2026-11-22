@@ -8,9 +8,7 @@ import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { PlaceMap } from './screens/PlaceMap'
 import { Collection } from './screens/Collection'
-import type { Screen, ScreenProps } from './screens/types'
-
-const SCREEN_KEY = 'screen'
+import { SCREEN_KEY, type Screen, type ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
   start: GroupStart,

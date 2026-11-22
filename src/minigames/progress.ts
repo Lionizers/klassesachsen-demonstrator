@@ -1,6 +1,8 @@
 import type { Minigame } from './model'
 
 export const MINIGAMES_KEY = 'minigames'
+/** The sync cursor over these events, see offline.tsx. */
+export const SYNC_KEY = 'sync'
 
 export type StationStatus = 'open' | 'skipped' | 'done'
 

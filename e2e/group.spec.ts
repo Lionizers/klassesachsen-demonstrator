@@ -1,30 +1,14 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { DB_NAME, STORE } from '../src/store/db'
 import { GROUP_KEY } from '../src/group'
 import { FAIL_PUT, failPut } from './fail-put'
+import { readKey } from './helpers'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
 async function axeClean(page: Page) {
   const result = await new AxeBuilder({ page }).withTags(WCAG).analyze()
   expect(result.violations).toEqual([])
-}
-
-async function readGroupRecord(page: Page) {
-  return page.evaluate(
-    ([db, store, key]) =>
-      new Promise((resolve, reject) => {
-        const open = indexedDB.open(db)
-        open.onerror = () => reject(open.error)
-        open.onsuccess = () => {
-          const get = open.result.transaction(store).objectStore(store).get(key)
-          get.onsuccess = () => resolve(get.result)
-          get.onerror = () => reject(get.error)
-        }
-      }),
-    [DB_NAME, STORE, GROUP_KEY],
-  )
 }
 
 test('AE1/AE3: picking a suggested name creates the group and shows the roles', async ({ page }) => {
@@ -69,7 +53,7 @@ test('AE7: stored data holds only the group name and the round', async ({ page }
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
-  expect(await readGroupRecord(page)).toEqual({ name: 'Otter', round: 0 })
+  expect(await readKey(page, GROUP_KEY)).toEqual({ name: 'Otter', round: 0 })
 })
 
 test('AE5: empty name field explains why saving is blocked', async ({ page }) => {
@@ -83,7 +67,7 @@ test('storage unavailable: the app says so instead of staying blank', async ({ p
     IDBFactory.prototype.open = () => { throw new Error('blocked') }
   })
   await page.goto('/')
-  await expect(page.getByRole('alert')).toHaveText('Der Speicher dieses Geräts ist nicht verfügbar.')
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Der Speicher dieses Geräts ist nicht verfügbar.')
 })
 
 test('saving fails: the group start shows an error instead of failing silently', async ({ page }) => {

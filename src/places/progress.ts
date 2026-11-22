@@ -3,20 +3,22 @@ import { burgFunkelfels } from '../minigames/burg-funkelfels'
 import { initialProgress, placeState, type Progress as GameProgress } from '../minigames/progress'
 import { MINIGAME_PLACE, type PlaceId } from './places'
 
+export const PROGRESS_KEY = 'progress'
+
 export type Status = 'open' | 'started' | 'done'
 type StoredStatus = Exclude<Status, 'open'>
 /** Only the reached/finished state per place; positions never get stored. */
 export type Progress = Partial<Record<PlaceId, StoredStatus>>
 
 export async function loadProgress(): Promise<Progress> {
-  return (await load<Progress>('progress')) ?? {}
+  return (await load<Progress>(PROGRESS_KEY)) ?? {}
 }
 
 export async function setStatus(id: PlaceId, status: StoredStatus): Promise<void> {
   const progress = await loadProgress()
   // Reaching a finished place again must not reopen it.
   if (progress[id] === 'done') return
-  await save('progress', { ...progress, [id]: status })
+  await save(PROGRESS_KEY, { ...progress, [id]: status })
 }
 
 /**

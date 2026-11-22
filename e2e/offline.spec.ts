@@ -1,48 +1,26 @@
 import { test, expect, type Page } from '@playwright/test'
 import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
-import { MINIGAMES_KEY } from '../src/minigames/progress'
+import { MINIGAMES_KEY, SYNC_KEY, type Progress } from '../src/minigames/progress'
 import { DB_NAME, STORE } from '../src/store/db'
+import { PLACE_KEY, SCREEN_KEY } from '../src/screens/types'
+import { FAIL_PUT, failPut } from './fail-put'
+import { heading, leaveToGroup, openMapFromGroup, readKey, reachPlaceFromGroup } from './helpers'
 
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'estimate')!
 const dilemma = burgFunkelfels.find((g): g is Dilemma => g.kind === 'dilemma')!
 
-const ready = (page: Page) => page.getByText(/^bereit für offline ✔ · [\d.]+ kB$/)
+const ready = (page: Page) => page.getByRole('status').filter({ hasText: /^bereit für offline ✔ · [\d.]+ kB$/ })
 const queue = (page: Page) => page.getByText(/^Offene Ergebnisse:/)
 const SYNCED = /^Offene Ergebnisse: 0 · zuletzt synchronisiert \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
-const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
-
-/** From the group screen over the map to the stations; waits for the heading focus so typing is not raced by the view change. */
-async function reachPlace(page: Page) {
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
-  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
-  await expect(page.getByRole('img', { name: /Fantasiekarte/ })).toBeVisible()
-  await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) }).click()
-  await expect(heading(page, PLACE_NAME)).toBeFocused()
-  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
-  await page.getByRole('button', { name: 'Code prüfen' }).click()
-  await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
-  await expect(heading(page, PLACE_NAME)).toBeFocused()
-}
 
 async function enterPlace(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await reachPlace(page)
+  await reachPlaceFromGroup(page)
 }
-
-/** Makes saving the given key fail by aborting its transaction, like a full quota would. */
-const FAIL_KEY = `
-  const put = IDBObjectStore.prototype.put
-  IDBObjectStore.prototype.put = function (value, key) {
-    const request = put.apply(this, arguments)
-    const tx = this.transaction
-    if (window.failKey === key) request.addEventListener('success', () => tx.abort())
-    return request
-  }
-`
 
 test('AE1: the header says ready for offline with the download size once everything is cached', async ({ page }) => {
   await page.goto('/')
@@ -74,13 +52,13 @@ test('AE2/AE4/AE5: offline the map and all three minigames work, results queue u
   await context.setOffline(true)
   await page.reload()
 
-  await reachPlace(page)
+  await reachPlaceFromGroup(page)
 
   await station(page, puzzle.title.standard).click()
   await page.getByRole('button', { name: 'Fuchs Fidelius um Hilfe bitten' }).click()
   await expect(page.getByText(puzzle.hints[0].standard)).toBeVisible()
   await page.getByRole('button', { name: 'Prüfen' }).click()
-  await expect(page.getByRole('status')).toContainText('Versuch 1')
+  await expect(page.getByRole('main').getByRole('status')).toContainText('Versuch 1')
   await page.getByRole('button', { name: 'Später nachholen' }).click()
 
   await station(page, estimate.title.standard).click()
@@ -94,7 +72,17 @@ test('AE2/AE4/AE5: offline the map and all three minigames work, results queue u
   await expect(page.getByText(dilemma.options[0].consequence.standard)).toBeVisible()
 
   await expect(queue(page)).toHaveText(/^Offene Ergebnisse: [1-9]\d*$/)
+  // A live counter would announce every tap; the sync result is read when wanted.
+  await expect(page.getByRole('status').filter({ hasText: 'Offene Ergebnisse' })).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
+
+  // The collection works offline too; only the collage is still missing.
+  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
+  await leaveToGroup(page)
+  await page.getByRole('button', { name: 'Sammlung', exact: true }).click()
+  await expect(heading(page, 'Sammlung')).toBeFocused()
+  await expect(page.getByRole('list', { name: 'Gesammelt' }).getByRole('listitem'))
+    .toHaveText([new RegExp(estimate.reward.standard), new RegExp(dilemma.reward.standard)])
 
   await context.setOffline(false)
   await expect(queue(page)).toHaveText(SYNCED)
@@ -106,12 +94,7 @@ test('AE3: after closing and reopening the tab the group is back on the same vie
   await page.getByRole('button', { name: 'Später nachholen' }).click()
   await expect(page.getByText('Angefangen')).toBeVisible()
   // The save starts on the tap; a test closes the tab within milliseconds, so wait for it to land first.
-  await expect.poll(() => page.evaluate(([db, store, key, id]) => new Promise((resolve) => {
-    indexedDB.open(db).onsuccess = (e) => {
-      const get = (e.target as IDBOpenDBRequest).result.transaction(store).objectStore(store).get(key)
-      get.onsuccess = () => resolve(get.result?.status[id])
-    }
-  }), [DB_NAME, STORE, MINIGAMES_KEY, puzzle.id])).toBe('skipped')
+  await expect.poll(async () => ((await readKey(page, MINIGAMES_KEY)) as Progress | undefined)?.status[puzzle.id]).toBe('skipped')
   await page.close()
 
   const again = await context.newPage()
@@ -124,16 +107,10 @@ test('AE3: after closing and reopening the tab the group is back on the same vie
 test('AE3: a reopened place the group has not reached yet still asks for its check', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
-  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
+  await openMapFromGroup(page)
   await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) }).click()
   await expect(heading(page, PLACE_NAME)).toBeFocused()
-  await expect.poll(() => page.evaluate(([db, store]) => new Promise((resolve) => {
-    indexedDB.open(db).onsuccess = (e) => {
-      const get = (e.target as IDBOpenDBRequest).result.transaction(store).objectStore(store).get('place')
-      get.onsuccess = () => resolve(get.result)
-    }
-  }), [DB_NAME, STORE])).toBe('funkelfels')
+  await expect.poll(() => readKey(page, PLACE_KEY)).toBe('funkelfels')
   await page.reload()
   await expect(heading(page, PLACE_NAME)).toBeFocused()
   await expect(page.getByLabel('Code vom Schild')).toBeVisible()
@@ -143,7 +120,7 @@ test('AE3: a reopened place the group has not reached yet still asks for its che
 test('AE6: storage persistence refused: the header asks to install the app on the home screen', async ({ page }) => {
   await page.addInitScript(() => { StorageManager.prototype.persist = async () => false })
   await page.goto('/')
-  await expect(page.getByText(/Installiert die App auf dem Home-Bildschirm/)).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
 })
 
 test('AE6: storage persistence granted: no install hint', async ({ page }) => {
@@ -160,15 +137,15 @@ test('AE6: storage persistence granted: no install hint', async ({ page }) => {
 })
 
 test('AE7: a failed sync keeps the results queued and says so; the next sync empties the queue', async ({ page, context }) => {
-  await page.addInitScript(FAIL_KEY)
+  await page.addInitScript(FAIL_PUT)
   await enterPlace(page)
-  await page.evaluate(() => { (window as unknown as { failKey?: string }).failKey = 'sync' })
+  await failPut(page, SYNC_KEY)
   // Opening a station records E1, which saves the progress and starts a sync.
   await station(page, estimate.title.standard).click()
   await expect(page.getByRole('alert')).toHaveText('Die Synchronisation ist fehlgeschlagen. Die Ergebnisse bleiben in der Warteschlange.')
   await expect(queue(page)).toHaveText('Offene Ergebnisse: 1')
 
-  await page.evaluate(() => { (window as unknown as { failKey?: string }).failKey = undefined })
+  await failPut(page, false)
   await context.setOffline(true)
   await context.setOffline(false)
   await expect(queue(page)).toHaveText(SYNCED)
@@ -179,13 +156,59 @@ test('AE3: a stored screen this version does not know falls back to the group vi
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
-  await page.evaluate(([db, store]) => new Promise((resolve) => {
+  await page.evaluate(([db, store, key]) => new Promise((resolve) => {
     indexedDB.open(db).onsuccess = (e) => {
       const tx = (e.target as IDBOpenDBRequest).result.transaction(store, 'readwrite')
-      tx.objectStore(store).put('removed-screen', 'screen')
+      tx.objectStore(store).put('removed-screen', key)
       tx.oncomplete = resolve
     }
-  }), [DB_NAME, STORE])
+  }), [DB_NAME, STORE, SCREEN_KEY])
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
+})
+
+test('saving the open place fails: the place view says so', async ({ page }) => {
+  await page.addInitScript(FAIL_PUT)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await openMapFromGroup(page)
+  await failPut(page, PLACE_KEY)
+  await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) }).click()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await expect(page.getByRole('alert')).toHaveText('Die aktuelle Ansicht konnte nicht gespeichert werden.')
+})
+
+test('saving the current screen fails: the app says so', async ({ page }) => {
+  await page.addInitScript(FAIL_PUT)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
+  await failPut(page, SCREEN_KEY)
+  await openMapFromGroup(page)
+  await expect(page.getByRole('alert')).toHaveText('Die aktuelle Ansicht konnte nicht gespeichert werden.')
+})
+
+test('the sync queue cannot be read: the header says so', async ({ page }) => {
+  await page.addInitScript(`
+    const get = IDBObjectStore.prototype.get
+    IDBObjectStore.prototype.get = function (key) {
+      if (key === ${JSON.stringify(SYNC_KEY)}) throw new DOMException('read failed', 'UnknownError')
+      return get.apply(this, arguments)
+    }
+  `)
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toHaveText('Die offenen Ergebnisse konnten nicht gelesen werden.')
+})
+
+test('the offline cache cannot be measured and persist() fails: calm messages, no unhandled error', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.addInitScript(() => {
+    CacheStorage.prototype.keys = async () => { throw new DOMException('cache gone', 'SecurityError') }
+    StorageManager.prototype.persist = async () => { throw new DOMException('no answer', 'InvalidStateError') }
+  })
+  await page.goto('/')
+  await expect(page.getByRole('status').filter({ hasText: 'Der Offline-Speicher konnte nicht geprüft werden.' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
+  expect(errors).toEqual([])
 })

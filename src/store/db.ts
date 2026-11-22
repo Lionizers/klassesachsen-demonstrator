@@ -1,5 +1,7 @@
 export const DB_NAME = 'klassesachsen'
 export const STORE = 'kv'
+/** Fired on window after a save committed; `detail` is the key. */
+export const KV_SAVED = 'kv-saved'
 
 let connection: Promise<IDBDatabase> | undefined
 
@@ -31,7 +33,7 @@ export async function save(key: string, value: unknown): Promise<void> {
     const tx = db.transaction(STORE, 'readwrite')
     tx.objectStore(STORE).put(value, key)
     tx.oncomplete = () => {
-      dispatchEvent(new CustomEvent('kv-saved', { detail: key }))
+      dispatchEvent(new CustomEvent(KV_SAVED, { detail: key }))
       resolve()
     }
     tx.onerror = () => reject(tx.error)

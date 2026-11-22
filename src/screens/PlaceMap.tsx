@@ -6,9 +6,8 @@ import { MINIGAMES_KEY, type Progress as GameProgress } from '../minigames/progr
 import { load, save } from '../store/db'
 import { PlaceView } from './PlaceView'
 import { focusHeading } from '../focus'
-import type { ScreenProps } from './types'
+import { PLACE_KEY, type ScreenProps } from './types'
 
-const PLACE_KEY = 'place'
 const STATUS_LABEL: Record<Status, string> = { open: 'offen', started: 'angefangen', done: 'fertig' }
 
 const W = 400
@@ -84,11 +83,19 @@ export function PlaceMap({ go, group }: ScreenProps) {
 
   function show(place: Place | undefined) {
     setSelected(place ? { place, reached: false } : null)
+    setError(undefined)
     focusHeading()
     save(PLACE_KEY, place?.id).catch(() => setError('Die aktuelle Ansicht konnte nicht gespeichert werden.'))
   }
 
-  if (selected) return <PlaceView place={selected.place} reached={selected.reached} group={group} onBack={() => show(undefined)} />
+  if (selected)
+    return (
+      <>
+        {/* The place view replaces the map at once, so a failed save of the open place must show here. */}
+        {error && <p role="alert">{error}</p>}
+        <PlaceView place={selected.place} reached={selected.reached} group={group} onBack={() => show(undefined)} />
+      </>
+    )
   return (
     <section aria-labelledby="map-title">
       <h2 id="map-title" tabIndex={-1}>Karte der Spielregion</h2>

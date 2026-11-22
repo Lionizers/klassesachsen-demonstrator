@@ -3,8 +3,8 @@ import AxeBuilder from '@axe-core/playwright'
 import QRCode from 'qrcode'
 import { EARTH_RADIUS_M } from '../src/places/geo'
 import { PLACES } from '../src/places/places'
-import { DB_NAME, STORE } from '../src/store/db'
 import { FAIL_PUT, failPut } from './fail-put'
+import { dumpStore, openMapFromGroup } from './helpers'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const funkelfels = PLACES.find((p) => p.id === 'funkelfels')!
@@ -52,8 +52,7 @@ async function fakeCamera(page: Page, opts: { reject?: string; qrImage?: string;
 async function openMap(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
-  await expect(page.getByRole('heading', { name: 'Karte der Spielregion' })).toBeVisible()
+  await openMapFromGroup(page)
 }
 
 async function openPlace(page: Page, name: string) {
@@ -82,25 +81,6 @@ async function fakeGeolocation(page: Page, answer: string) {
 async function backToMapShows(page: Page, label: string) {
   await page.getByRole('button', { name: 'Zurück zur Karte' }).click()
   await expect(page.getByRole('button', { name: label })).toBeVisible()
-}
-
-async function dumpStore(page: Page) {
-  return page.evaluate(
-    ([db, storeName]) =>
-      new Promise<Record<string, unknown>>((resolve, reject) => {
-        const open = indexedDB.open(db)
-        open.onerror = () => reject(open.error)
-        open.onsuccess = () => {
-          const store = open.result.transaction(storeName).objectStore(storeName)
-          const keys = store.getAllKeys()
-          const values = store.getAll()
-          values.onsuccess = () =>
-            resolve(Object.fromEntries((keys.result as string[]).map((k, i) => [k, values.result[i]])))
-          values.onerror = () => reject(values.error)
-        }
-      }),
-   [DB_NAME, STORE],
-  )
 }
 
 test('AE1: map shows three open places, none locked, and is accessible', async ({ page }) => {
@@ -205,6 +185,7 @@ test('quest AE5: Kloster Krümelbach keeps the placeholder, can be finished and 
   await page.getByRole('button', { name: 'Aufgabe erledigt' }).click()
   await expect(page.getByRole('button', { name: 'Kloster Krümelbach – fertig' })).toBeVisible()
   await page.getByRole('button', { name: 'Kloster Krümelbach – fertig' }).click()
+  await expect(page.getByRole('heading', { name: 'Kloster Krümelbach' })).toBeFocused()
   await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Station erreicht!')).toBeVisible()
@@ -298,11 +279,11 @@ test('focus follows the view: map heading after "Zur Karte", place heading, map 
 test('reaching a place is announced in the same live region and focus stays on the screen', async ({ page }) => {
   await openKruemelbach(page)
   // Marks the region node: a replaced node would not be announced.
-  await page.getByRole('status').evaluate((el) => el.setAttribute('data-probe', ''))
+  await page.getByRole('main').getByRole('status').evaluate((el) => el.setAttribute('data-probe', ''))
   await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
-  await expect(page.getByRole('status')).toHaveText('Station erreicht!')
-  await expect(page.getByRole('status')).toHaveAttribute('data-probe', '')
+  await expect(page.getByRole('main').getByRole('status')).toHaveText('Station erreicht!')
+  await expect(page.getByRole('main').getByRole('status')).toHaveAttribute('data-probe', '')
   await expect(page.getByRole('heading', { name: 'Kloster Krümelbach' })).toBeFocused()
 })
 

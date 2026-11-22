@@ -1,5 +1,9 @@
 import type { Group } from '../group'
 
+/** Store keys of the last view, so a reopened tab continues there. */
+export const SCREEN_KEY = 'screen'
+export const PLACE_KEY = 'place'
+
 export type Screen = 'start' | 'roles' | 'map' | 'collection'
 export type ScreenProps = {
   go: (screen: Screen) => void
