@@ -179,7 +179,11 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
     const next = [...order]
     ;[next[i], next[j]] = [next[j], next[i]]
     setOrder(next)
-    setMessage(`„${game.pieces[order[i]].standard}“ jetzt an Stelle ${j + 1}.`)
+    const text = game.pieces[order[i]].standard
+    setMessage(`„${text}“ jetzt an Stelle ${j + 1}.`)
+    // Reordering the list can move the focused button out of the DOM; keep the focus on the moved piece.
+    const direction = j < i ? 'nach oben' : 'nach unten'
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[aria-label="${text} ${direction}"]`)?.focus())
   }
 
   return (
