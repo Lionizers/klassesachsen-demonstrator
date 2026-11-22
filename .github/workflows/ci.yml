@@ -22,6 +22,8 @@ jobs:
       - run: npm run e2e
         env:
           CI: '1'
+      - name: Container answers /health and serves uncached PWA files
+        run: scripts/container-smoke.sh
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

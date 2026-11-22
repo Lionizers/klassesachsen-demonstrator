@@ -1,13 +1,21 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { FORBIDDEN_BRAND } from '../src/forbidden-brand'
+import { manifest } from '../src/pwa-manifest'
 
 const HEADING = 'Demonstrator der Lionizers GmbH'
 
 test('AE2: start page shows the Lionizers demonstrator heading', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1, name: HEADING })).toBeVisible()
-  await expect(page.locator('body')).not.toContainText(/Schl[öo]sser|SBG|Burgen und G[äa]rten/i)
-  await expect(page).not.toHaveTitle(/Schl[öo]sser|SBG/i)
+  await expect(page.locator('body')).not.toContainText(FORBIDDEN_BRAND)
+  await expect(page).not.toHaveTitle(FORBIDDEN_BRAND)
+})
+
+test('page title and theme color come from the manifest', async ({ page }) => {
+  await page.goto('/')
+  await expect(page).toHaveTitle(manifest.name!)
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', manifest.theme_color!)
 })
 
 test('AE3: app is installable (manifest fields, active service worker)', async ({ page, request }) => {

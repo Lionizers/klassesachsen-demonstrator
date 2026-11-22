@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { manifest } from './pwa-manifest'
+import { FORBIDDEN_BRAND } from './forbidden-brand'
 
 describe('PWA manifest', () => {
   it('has the fields browsers require for installation', () => {
@@ -17,6 +18,6 @@ describe('PWA manifest', () => {
   })
 
   it('does not carry the contracting authority brand', () => {
-    expect(JSON.stringify(manifest)).not.toMatch(/Schl[öo]sser|SBG|Burgen und G[äa]rten/i)
+    expect(JSON.stringify(manifest)).not.toMatch(FORBIDDEN_BRAND)
   })
 })

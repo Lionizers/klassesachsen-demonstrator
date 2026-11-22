@@ -46,6 +46,8 @@ docker run --rm -p 8080:5000 entdeckerreise
 curl http://localhost:8080/health
 ```
 
+Die Prüfung, die auch die CI ausführt: `scripts/container-smoke.sh`.
+
 Die App braucht keinen Server-Code, keine Datenbank und keine Umgebungsvariablen.
 
 ## Auslieferung
