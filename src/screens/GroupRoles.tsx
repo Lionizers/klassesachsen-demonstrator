@@ -1,9 +1,10 @@
 import { useState } from 'preact/hooks'
 import { GROUP_KEY, rolesFor } from '../group'
 import { save } from '../store/db'
+import { PLACE_NAME } from '../minigames/burg-funkelfels'
 import type { ScreenProps } from './types'
 
-export function GroupRoles({ group, setGroup }: ScreenProps) {
+export function GroupRoles({ go, group, setGroup }: ScreenProps) {
   const [error, setError] = useState<string>()
   if (!group) return null
 
@@ -28,7 +29,8 @@ export function GroupRoles({ group, setGroup }: ScreenProps) {
           <li key={role}>Position {i + 1}: {role}</li>
         ))}
       </ol>
-      <button type="button" onClick={nextRound}>Neue Runde</button>
+      <button type="button" onClick={nextRound}>Neue Runde</button>{' '}
+      <button type="button" onClick={() => go('place')}>{PLACE_NAME} erkunden</button>
     </section>
   )
 }
