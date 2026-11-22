@@ -4,11 +4,13 @@ import { GROUP_KEY, type Group } from './group'
 import { load } from './store/db'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
+import { Place } from './minigames/Place'
 import type { Screen, ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
   start: GroupStart,
   roles: GroupRoles,
+  place: Place,
 }
 
 export function App() {
