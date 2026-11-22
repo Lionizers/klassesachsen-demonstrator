@@ -1,20 +1,16 @@
-import { useEffect, useState } from 'preact/hooks'
-import { rolesFor, type Group } from '../group'
-import { load, save } from '../store/db'
+import { useState } from 'preact/hooks'
+import { GROUP_KEY, rolesFor } from '../group'
+import { save } from '../store/db'
+import type { ScreenProps } from './types'
 
-export function GroupRoles() {
-  const [group, setGroup] = useState<Group>()
+export function GroupRoles({ group, setGroup }: ScreenProps) {
   const [error, setError] = useState<string>()
-
-  useEffect(() => {
-    load<Group>('group').then(setGroup, () => setError('Die Gruppe konnte nicht geladen werden.'))
-  }, [])
+  if (!group) return null
 
   async function nextRound() {
-    if (!group) return
-    const next = { ...group, round: group.round + 1 }
+    const next = { ...group!, round: group!.round + 1 }
     try {
-      await save('group', next)
+      await save(GROUP_KEY, next)
     } catch {
       setError('Die neue Runde konnte nicht gespeichert werden.')
       return
@@ -22,12 +18,11 @@ export function GroupRoles() {
     setGroup(next)
   }
 
-  if (!group) return error ? <p role="alert">{error}</p> : null
   return (
     <section aria-labelledby="group-title">
-      <h2 id="group-title">Gruppe {group.name}</h2>
+      <h2 id="group-title" tabIndex={-1}>Gruppe {group.name}</h2>
       {error && <p role="alert">{error}</p>}
-      <p>Runde {group.round + 1}. Ihr spielt gemeinsam an einem Gerät. Die Rollen wechseln jede Runde.</p>
+      <p aria-live="polite">Runde {group.round + 1}. Ihr spielt gemeinsam an einem Gerät. Die Rollen wechseln jede Runde.</p>
       <ol aria-label="Rollen in dieser Runde">
         {rolesFor(group.round).map((role, i) => (
           <li key={role}>Position {i + 1}: {role}</li>

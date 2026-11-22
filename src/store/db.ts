@@ -1,13 +1,19 @@
-const DB_NAME = 'klassesachsen'
-const STORE = 'kv'
+export const DB_NAME = 'klassesachsen'
+export const STORE = 'kv'
+
+let connection: Promise<IDBDatabase> | undefined
 
 function open(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  connection ??= new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, 1)
     request.onupgradeneeded = () => request.result.createObjectStore(STORE)
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)
+    request.onblocked = () => reject(new Error('IndexedDB upgrade blocked by another open tab'))
   })
+  // A failed open must not be cached, or every later call fails too.
+  connection.catch(() => (connection = undefined))
+  return connection
 }
 
 export async function load<T>(key: string): Promise<T | undefined> {
@@ -26,5 +32,7 @@ export async function save(key: string, value: unknown): Promise<void> {
     tx.objectStore(STORE).put(value, key)
     tx.oncomplete = () => resolve()
     tx.onerror = () => reject(tx.error)
+    // Quota errors abort the transaction without an error event on it.
+    tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'))
   })
 }

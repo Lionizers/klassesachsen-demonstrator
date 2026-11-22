@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ROLES, SUGGESTED_NAMES, rolesFor, validateName } from './group'
+import { MAX_NAME_LENGTH, ROLES, SUGGESTED_NAMES, rolesFor, validateName } from './group'
 
 describe('group start', () => {
   it('AE1: offers at least 12 distinct neutral names', () => {
@@ -22,5 +22,10 @@ describe('group start', () => {
     expect(validateName('')).toMatch(/Gruppennamen/)
     expect(validateName('   ')).toMatch(/Gruppennamen/)
     expect(validateName('Fuchs')).toBeNull()
+  })
+
+  it('accepts a name of exactly the maximum length and rejects one character more', () => {
+    expect(validateName('a'.repeat(MAX_NAME_LENGTH))).toBeNull()
+    expect(validateName('a'.repeat(MAX_NAME_LENGTH + 1))).toMatch(/höchstens/)
   })
 })

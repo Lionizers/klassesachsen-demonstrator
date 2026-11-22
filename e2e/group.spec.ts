@@ -1,5 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { DB_NAME, STORE } from '../src/store/db'
+import { GROUP_KEY } from '../src/group'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
@@ -10,16 +12,17 @@ async function axeClean(page: Page) {
 
 async function readGroupRecord(page: Page) {
   return page.evaluate(
-    () =>
+    ([db, store, key]) =>
       new Promise((resolve, reject) => {
-        const open = indexedDB.open('klassesachsen')
+        const open = indexedDB.open(db)
         open.onerror = () => reject(open.error)
         open.onsuccess = () => {
-          const get = open.result.transaction('kv').objectStore('kv').get('group')
+          const get = open.result.transaction(store).objectStore(store).get(key)
           get.onsuccess = () => resolve(get.result)
           get.onerror = () => reject(get.error)
         }
       }),
+    [DB_NAME, STORE, GROUP_KEY],
   )
 }
 
@@ -96,8 +99,11 @@ test('saving the next round fails: the roles screen shows an error', async ({ pa
   await page.addInitScript(`
     const put = IDBObjectStore.prototype.put
     IDBObjectStore.prototype.put = function () {
-      if (window.failPut) throw new Error('quota')
-      return put.apply(this, arguments)
+      const request = put.apply(this, arguments)
+      // Like a quota error at commit: the request succeeded, then the transaction aborts.
+      const tx = this.transaction
+      if (window.failPut) request.addEventListener('success', () => tx.abort())
+      return request
     }
   `)
   await page.goto('/')
@@ -106,4 +112,16 @@ test('saving the next round fails: the roles screen shows an error', async ({ pa
   await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
   await page.getByRole('button', { name: 'Neue Runde' }).click()
   await expect(page.getByRole('alert')).toHaveText('Die neue Runde konnte nicht gespeichert werden.')
+})
+
+test('focus moves to the new screen heading after choosing a name', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeFocused()
+})
+
+test('round changes are announced to screen readers', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await expect(page.getByText(/^Runde 1\./)).toHaveAttribute('aria-live', 'polite')
 })
