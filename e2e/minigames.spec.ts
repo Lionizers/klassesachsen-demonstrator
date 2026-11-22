@@ -165,6 +165,8 @@ test('focus moves to the heading of every view inside the place', async ({ page 
   await press(page, 'Später nachholen')
   await expect(heading(page, PLACE_NAME)).toBeFocused()
   await press(page, estimate.title.standard)
+  // Each view focuses its heading one frame later; act only after that, or the step races the focus move.
+  await expect(heading(page, estimate.title.standard)).toBeFocused()
   await page.getByLabel(`Eure Schätzung (${estimate.unit})`).fill(String(estimate.target))
   await press(page, 'Prüfen')
   await expect(heading(page, `${estimate.title.standard}: geschafft!`)).toBeFocused()
