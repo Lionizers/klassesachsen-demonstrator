@@ -40,17 +40,35 @@ async function openCollection(page: Page) {
   await expect(page.getByRole('heading', { name: 'Sammlung' })).toBeFocused()
 }
 
+/** From the group screen over the map into Burg Funkelfels, waiting for each view to settle. */
+async function enterFunkelfels(page: Page) {
+  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(page.getByRole('heading', { name: 'Karte der Spielregion' })).toBeFocused()
+  await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME}`) }).click()
+  await expect(page.getByRole('heading', { name: PLACE_NAME })).toBeFocused()
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
+}
+
+/** Back from the place over the map to the group screen. */
+async function leaveToGroup(page: Page) {
+  await page.getByRole('button', { name: 'Zurück zur Karte' }).click()
+  await expect(page.getByRole('heading', { name: 'Karte der Spielregion' })).toBeFocused()
+  await page.getByRole('button', { name: 'Zurück zur Gruppe' }).click()
+}
+
 /** Solves the estimate station and ends on the group screen. */
 async function solveEstimate(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
+  await enterFunkelfels(page)
   await page.getByRole('button', { name: estimate.title.standard }).click()
   await expect(page.getByText(`Belohnung: ${reward}`)).toBeVisible()
   await page.getByLabel(`Eure Schätzung (${estimate.unit})`).fill(String(estimate.target))
   await page.getByRole('button', { name: 'Prüfen' }).click()
   await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
-  await page.getByRole('button', { name: 'Zurück zur Gruppe' }).click()
+  await leaveToGroup(page)
 }
 
 test('AE1: the reward announced at the station is the item that appears in the collection', async ({ page }) => {
@@ -88,9 +106,9 @@ test('AE3: a collected item can be put on the character and taken off again', as
 
 test('AE4: a solved station cannot be played again and its item is listed once', async ({ page }) => {
   await solveEstimate(page)
-  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
+  await enterFunkelfels(page)
   await expect(page.getByRole('button', { name: estimate.title.standard })).toHaveCount(0)
-  await page.getByRole('button', { name: 'Zurück zur Gruppe' }).click()
+  await leaveToGroup(page)
   await openCollection(page)
   await expect(collectedList(page)).toHaveCount(1)
 })
