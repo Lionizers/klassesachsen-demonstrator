@@ -12,12 +12,25 @@ const ready = (page: Page) => page.getByText(/^bereit für offline ✔ · [\d.]+
 const queue = (page: Page) => page.getByText(/^Offene Ergebnisse:/)
 const SYNCED = /^Offene Ergebnisse: 0 · zuletzt synchronisiert \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
+const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
+
+/** From the group screen over the map to the stations; waits for the heading focus so typing is not raced by the view change. */
+async function reachPlace(page: Page) {
+  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
+  await expect(page.getByRole('img', { name: /Fantasiekarte/ })).toBeVisible()
+  await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) }).click()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+}
 
 async function enterPlace(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
-  await expect(page.getByRole('heading', { name: PLACE_NAME })).toBeVisible()
+  await reachPlace(page)
 }
 
 /** Makes saving the given key fail by aborting its transaction, like a full quota would. */
@@ -61,10 +74,7 @@ test('AE2/AE4/AE5: offline the map and all three minigames work, results queue u
   await context.setOffline(true)
   await page.reload()
 
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
-  await expect(page.getByRole('img', { name: /Fantasiekarte/ })).toBeVisible()
-  await page.getByRole('button', { name: 'Zurück zur Gruppe' }).click()
-  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
+  await reachPlace(page)
 
   await station(page, puzzle.title.standard).click()
   await page.getByRole('button', { name: 'Fuchs Fidelius um Hilfe bitten' }).click()
@@ -109,6 +119,25 @@ test('AE3: after closing and reopening the tab the group is back on the same vie
   await expect(again.getByRole('heading', { name: PLACE_NAME })).toBeVisible()
   await expect(again.getByText('Angefangen')).toBeVisible()
   await expect(again.getByRole('listitem').filter({ hasText: puzzle.title.standard })).toContainText('später nachholen')
+})
+
+test('AE3: a reopened place the group has not reached yet still asks for its check', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
+  await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) }).click()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await expect.poll(() => page.evaluate(([db, store]) => new Promise((resolve) => {
+    indexedDB.open(db).onsuccess = (e) => {
+      const get = (e.target as IDBOpenDBRequest).result.transaction(store).objectStore(store).get('place')
+      get.onsuccess = () => resolve(get.result)
+    }
+  }), [DB_NAME, STORE])).toBe('funkelfels')
+  await page.reload()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await expect(page.getByLabel('Code vom Schild')).toBeVisible()
+  await expect(page.getByRole('list', { name: 'Stationen' })).toHaveCount(0)
 })
 
 test('AE6: storage persistence refused: the header asks to install the app on the home screen', async ({ page }) => {

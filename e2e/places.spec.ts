@@ -232,7 +232,7 @@ test('AE8: no position is stored or sent, only that the place was reached', asyn
   page.on('request', (r) => sent.push(`${r.method()} ${r.url()} ${r.postData() ?? ''}`))
   await page.getByRole('button', { name: 'Standort prüfen' }).click()
   await expect(stations(page)).toBeVisible()
-  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, progress: { funkelfels: 'started' }, screen: 'map' })
+  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, progress: { funkelfels: 'started' }, screen: 'map', place: 'funkelfels' })
   expect(sent).toEqual([])
 })
 
@@ -373,7 +373,7 @@ test('a GPS answer arriving after leaving the place is discarded', async ({ page
   await page.evaluate(() => (window as unknown as { answerGps: () => void }).answerGps())
   // A late write would land within milliseconds; give it time before reading the store.
   await page.waitForTimeout(300)
-  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, screen: 'map' })
+  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, screen: 'map', place: undefined })
   await page.reload()
   await expect(page.getByRole('button', { name: 'Burg Funkelfels – offen' })).toBeVisible()
 })

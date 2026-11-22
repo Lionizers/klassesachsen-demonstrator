@@ -19,10 +19,8 @@ async function axeClean(page: Page) {
 const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
 const mapButton = (page: Page) => page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) })
 
-/** From the group screen over the map to the stations; waits for the heading focus so later key presses are not stolen. */
+/** From the map to the stations; waits for the heading focus so later key presses are not stolen. */
 async function reachPlace(page: Page) {
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
-  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
   await mapButton(page).click()
   // Typing before the place view has settled (heading focused) races the view change.
   await expect(heading(page, PLACE_NAME)).toBeFocused()
@@ -35,6 +33,8 @@ async function reachPlace(page: Page) {
 async function enterPlace(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
   await reachPlace(page)
 }
 
@@ -111,7 +111,7 @@ test('AE6: a skipped station can be resumed later, also after a reload', async (
   await expect(page.getByText('Angefangen')).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: puzzle.title.standard })).toContainText('später nachholen')
   await page.reload()
-  await reachPlace(page)
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
   await expect(page.getByText('Angefangen')).toBeVisible()
   await station(page, puzzle.title.standard).click()
   await solvePuzzle(page)
@@ -267,7 +267,8 @@ test('quest AE2: a begun minigame shows the place as started on the map', async 
   await station(page, puzzle.title.standard).click()
   await expect(heading(page, puzzle.title.standard)).toBeVisible()
   await page.reload()
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await backToMap(page)
   await expect(mapButton(page)).toHaveText(`${PLACE_NAME} – angefangen`)
 })
 
@@ -304,6 +305,7 @@ test('quest AE7: saving the place state fails: alert, and the minigame progress 
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByRole('alert')).toHaveText('Der Fortschritt konnte nicht gespeichert werden.')
   await page.reload()
+  await expect(heading(page, 'Karte der Spielregion')).toBeVisible()
   await reachPlace(page)
   await expect(page.getByRole('listitem').filter({ hasText: estimate.title.standard })).toContainText('geschafft')
 })

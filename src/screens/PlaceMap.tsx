@@ -3,11 +3,12 @@ import type { JSX } from 'preact'
 import { PLACES, type Place, type PlaceId } from '../places/places'
 import { loadProgress, withMinigameStatus, type Progress, type Status } from '../places/progress'
 import { MINIGAMES_KEY, type Progress as GameProgress } from '../minigames/progress'
-import { load } from '../store/db'
+import { load, save } from '../store/db'
 import { PlaceView } from './PlaceView'
 import { focusHeading } from '../focus'
 import type { ScreenProps } from './types'
 
+const PLACE_KEY = 'place'
 const STATUS_LABEL: Record<Status, string> = { open: 'offen', started: 'angefangen', done: 'fertig' }
 
 const W = 400
@@ -59,26 +60,35 @@ function MapArt() {
 export function PlaceMap({ go, group }: ScreenProps) {
   // Empty until loaded: every place reads as open, so the heading is there for focus right away.
   const [progress, setProgress] = useState<Progress>({})
-  const [selected, setSelected] = useState<Place>()
+  // Undefined until the group picks a place, so a stored one may still be restored; null is the map.
+  const [selected, setSelected] = useState<{ place: Place; reached: boolean } | null>()
   const [error, setError] = useState<string>()
 
   useEffect(() => {
     if (selected) return
-    Promise.all([loadProgress(), load<GameProgress>(MINIGAMES_KEY)]).then(
-      ([places, games]) => {
-        setProgress(withMinigameStatus(places, games))
+    const restore = selected === undefined
+    Promise.all([loadProgress(), load<GameProgress>(MINIGAMES_KEY), restore ? load<PlaceId>(PLACE_KEY) : undefined]).then(
+      ([places, games, last]) => {
+        const merged = withMinigameStatus(places, games)
+        setProgress(merged)
         setError(undefined)
+        const place = PLACES.find((p) => p.id === last)
+        if (!place) return
+        // A reopened tab continues where the group was; only a place already reached skips the check.
+        setSelected((now) => (now === undefined ? { place, reached: merged[place.id] !== undefined } : now))
+        focusHeading()
       },
       () => setError('Der Spielstand konnte nicht geladen werden.'),
     )
   }, [selected])
 
   function show(place: Place | undefined) {
-    setSelected(place)
+    setSelected(place ? { place, reached: false } : null)
     focusHeading()
+    save(PLACE_KEY, place?.id).catch(() => setError('Die aktuelle Ansicht konnte nicht gespeichert werden.'))
   }
 
-  if (selected) return <PlaceView place={selected} group={group} onBack={() => show(undefined)} />
+  if (selected) return <PlaceView place={selected.place} reached={selected.reached} group={group} onBack={() => show(undefined)} />
   return (
     <section aria-labelledby="map-title">
       <h2 id="map-title" tabIndex={-1}>Karte der Spielregion</h2>

@@ -10,10 +10,10 @@ import { Place as Minigames } from '../minigames/Place'
 const RADIUS_M = 100
 const WRONG_PLACE = 'Das ist ein anderer Ort. Sucht das Schild von diesem Ort.'
 
-type Props = { place: Place; group: Group | undefined; onBack: () => void }
+type Props = { place: Place; reached: boolean; group: Group | undefined; onBack: () => void }
 
-export function PlaceView({ place, group, onBack }: Props) {
-  const [reached, setReached] = useState(false)
+export function PlaceView({ place, reached: alreadyReached, group, onBack }: Props) {
+  const [reached, setReached] = useState(alreadyReached)
   const [denied, setDenied] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
