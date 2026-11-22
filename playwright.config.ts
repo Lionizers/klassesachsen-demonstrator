@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const PORT = 4173
+const PORT = Number(process.env.E2E_PORT ?? 4173)
 
 // Runs against the production build: the service worker only exists there.
 export default defineConfig({
