@@ -18,11 +18,11 @@ async function axeClean(page: Page) {
 }
 
 /**
- * Camera fake: getUserMedia yields a canvas stream showing `qrImage` (or rejects when denied).
+ * Camera fake: getUserMedia yields a canvas stream showing `qrImage`, or rejects with a DOMException named `reject`.
  * `barcode` replaces BarcodeDetector with one that reads that text; `null` removes it to force the jsQR path.
  */
-async function fakeCamera(page: Page, opts: { denied?: boolean; qrImage?: string; barcode?: string | null }) {
-  await page.addInitScript(({ denied, qrImage, barcode }) => {
+async function fakeCamera(page: Page, opts: { reject?: string; qrImage?: string; barcode?: string | null }) {
+  await page.addInitScript(({ reject, qrImage, barcode }) => {
     const w = window as unknown as Record<string, unknown>
     if (barcode === null) delete w.BarcodeDetector
     else if (barcode !== undefined)
@@ -31,7 +31,7 @@ async function fakeCamera(page: Page, opts: { denied?: boolean; qrImage?: string
         async detect() { return [{ rawValue: barcode }] }
       }
     navigator.mediaDevices.getUserMedia = async () => {
-      if (denied) throw new DOMException('Permission denied', 'NotAllowedError')
+      if (reject) throw new DOMException('Camera failed', reject)
       const canvas = document.createElement('canvas')
       canvas.width = canvas.height = 300
       const ctx = canvas.getContext('2d')!
@@ -59,6 +59,26 @@ async function openFunkelfels(page: Page) {
   await openMap(page)
   await page.getByRole('button', { name: /^Burg Funkelfels/ }).click()
   await expect(page.getByRole('heading', { name: 'Burg Funkelfels' })).toBeVisible()
+}
+
+const FAIL_PUT = `
+  const put = IDBObjectStore.prototype.put
+  IDBObjectStore.prototype.put = function () {
+    const request = put.apply(this, arguments)
+    const tx = this.transaction
+    if (window.failPut) request.addEventListener('success', () => tx.abort())
+    return request
+  }
+`
+
+/** Replaces geolocation; `answer` runs inside the page with the success and error callbacks. */
+async function fakeGeolocation(page: Page, answer: string) {
+  await page.addInitScript(`
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: { getCurrentPosition: (ok, fail) => { ${answer} } },
+    })
+  `)
 }
 
 async function backToMapShows(page: Page, label: string) {
@@ -154,7 +174,7 @@ test('AE5: GPS at 101 m does not reach the place and offers the QR code', async 
 })
 
 test('AE6: denied camera offers classroom mode, which leads to the quest', async ({ page }) => {
-  await fakeCamera(page, { denied: true })
+  await fakeCamera(page, { reject: 'NotAllowedError' })
   await openFunkelfels(page)
   await expect(page.getByRole('button', { name: 'Im Klassenzimmer spielen' })).toHaveCount(0)
   await page.getByRole('button', { name: 'QR-Code scannen' }).click()
@@ -235,19 +255,105 @@ test('a device without geolocation offers the classroom mode', async ({ page }) 
 })
 
 test('saving the reached place fails: the place screen says so', async ({ page }) => {
-  await page.addInitScript(`
-    const put = IDBObjectStore.prototype.put
-    IDBObjectStore.prototype.put = function () {
-      const request = put.apply(this, arguments)
-      const tx = this.transaction
-      if (window.failPut) request.addEventListener('success', () => tx.abort())
-      return request
-    }
-  `)
+  await page.addInitScript(FAIL_PUT)
   await openFunkelfels(page)
   await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
   await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Der Fortschritt konnte nicht gespeichert werden.')).toBeVisible()
   await expect(page.getByText('Station erreicht!')).toHaveCount(0)
+})
+
+test('saving the finished task fails: the place screen says so', async ({ page }) => {
+  await page.addInitScript(FAIL_PUT)
+  await openFunkelfels(page)
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByText('Station erreicht!')).toBeVisible()
+  await page.evaluate(() => { (window as unknown as { failPut?: boolean }).failPut = true })
+  await page.getByRole('button', { name: 'Aufgabe erledigt' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Der Fortschritt konnte nicht gespeichert werden.')
+  await expect(page.getByRole('button', { name: 'Aufgabe erledigt' })).toBeVisible()
+})
+
+test('focus follows the view: map heading after "Zur Karte", place heading, map heading again', async ({ page }) => {
+  await openMap(page)
+  await expect(page.getByRole('heading', { name: 'Karte der Spielregion' })).toBeFocused()
+  await page.getByRole('button', { name: /^Burg Funkelfels/ }).click()
+  await expect(page.getByRole('heading', { name: 'Burg Funkelfels' })).toBeFocused()
+  await page.getByRole('button', { name: 'Zurück zur Karte' }).click()
+  await expect(page.getByRole('heading', { name: 'Karte der Spielregion' })).toBeFocused()
+})
+
+test('reaching a place is announced in the same live region and focus stays on the screen', async ({ page }) => {
+  await openFunkelfels(page)
+  // Marks the region node: a replaced node would not be announced.
+  await page.getByRole('status').evaluate((el) => el.setAttribute('data-probe', ''))
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByRole('status')).toHaveText('Station erreicht!')
+  await expect(page.getByRole('status')).toHaveAttribute('data-probe', '')
+  await expect(page.getByRole('heading', { name: 'Burg Funkelfels' })).toBeFocused()
+})
+
+test('progress cannot be loaded: the map stays usable with open places', async ({ page }) => {
+  await page.addInitScript(() => {
+    const get = IDBObjectStore.prototype.get
+    IDBObjectStore.prototype.get = function (key) {
+      if (key === 'progress') throw new Error('broken')
+      return get.call(this, key)
+    }
+  })
+  await openMap(page)
+  await expect(page.getByRole('alert')).toHaveText('Der Spielstand konnte nicht geladen werden.')
+  await expect(page.getByRole('list', { name: 'Orte' }).getByRole('button')).toHaveText([
+    'Burg Funkelfels – offen', 'Kloster Krümelbach – offen', 'Mühle Wackelstein – offen',
+  ])
+  await page.getByRole('button', { name: 'Zurück zur Gruppe' }).click()
+  await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
+})
+
+test('camera unavailable without denial: message, and the code still works', async ({ page }) => {
+  await fakeCamera(page, { reject: 'NotFoundError' })
+  await openFunkelfels(page)
+  await page.getByRole('button', { name: 'QR-Code scannen' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Die Kamera ist nicht verfügbar. Gebt den Code ein.')
+  await expect(page.getByRole('button', { name: 'Im Klassenzimmer spielen' })).toHaveCount(0)
+  await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
+  await page.getByRole('button', { name: 'Code prüfen' }).click()
+  await expect(page.getByText('Station erreicht!')).toBeVisible()
+})
+
+test('GPS timeout: the place screen offers the QR code', async ({ page }) => {
+  await fakeGeolocation(page, 'fail({ code: 3, PERMISSION_DENIED: 1 })')
+  await openFunkelfels(page)
+  await page.getByRole('button', { name: 'Standort prüfen' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Der Standort ist gerade nicht verfügbar. Scannt den QR-Code.')
+  await expect(page.getByRole('button', { name: 'Im Klassenzimmer spielen' })).toHaveCount(0)
+})
+
+test('camera image cannot start: the place screen says so', async ({ page }) => {
+  await page.addInitScript(() => {
+    HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('blocked', 'NotAllowedError'))
+  })
+  await fakeCamera(page, {})
+  await openFunkelfels(page)
+  await page.getByRole('button', { name: 'QR-Code scannen' }).click()
+  await expect(page.getByRole('alert')).toHaveText('Das Kamerabild konnte nicht gestartet werden.')
+})
+
+test('a GPS answer arriving after leaving the place is discarded', async ({ page }) => {
+  const { lat, lon } = funkelfels
+  await fakeGeolocation(page, `window.answerGps = () => ok({ coords: { latitude: ${lat}, longitude: ${lon} } })`)
+  await openFunkelfels(page)
+  await page.getByRole('button', { name: 'Standort prüfen' }).click()
+  await page.getByRole('button', { name: 'Zurück zur Karte' }).click()
+  await expect(page.getByRole('button', { name: 'Burg Funkelfels – offen' })).toBeVisible()
+  await page.evaluate(() => (window as unknown as { answerGps: () => void }).answerGps())
+  // A late write would land within milliseconds; give it time before reading the store.
+  await page.waitForTimeout(300)
+  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 } })
+  await page.reload()
+  await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(page.getByRole('button', { name: 'Burg Funkelfels – offen' })).toBeVisible()
 })

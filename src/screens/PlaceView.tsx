@@ -3,6 +3,7 @@ import { checkCode, type Place } from '../places/places'
 import { isWithinRadius } from '../places/geo'
 import { setStatus } from '../places/progress'
 import { qrReader } from '../places/qr'
+import { focusHeading } from '../focus'
 
 const RADIUS_M = 100
 const WRONG_PLACE = 'Das ist ein anderer Ort. Sucht das Schild von diesem Ort.'
@@ -13,35 +14,54 @@ export function PlaceView({ place, onBack }: Props) {
   const [reached, setReached] = useState(false)
   const [denied, setDenied] = useState(false)
   const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const [code, setCode] = useState('')
   const [stream, setStream] = useState<MediaStream>()
   const video = useRef<HTMLVideoElement>(null)
+  const left = useRef(false)
+  useEffect(() => () => { left.current = true }, [])
+
+  /** Hints and progress go to the polite status region, failures to the alert above the content. */
+  function say(text: string) {
+    setError('')
+    setMessage(text)
+  }
+
+  function fail(text: string) {
+    setMessage('')
+    setError(text)
+  }
 
   function reach() {
     setStatus(place.id, 'started').then(
-      () => setReached(true),
-      () => setMessage('Der Fortschritt konnte nicht gespeichert werden.'),
+      () => {
+        say('')
+        setReached(true)
+        // The button that was used disappears with the form.
+        focusHeading()
+      },
+      () => fail('Der Fortschritt konnte nicht gespeichert werden.'),
     )
   }
 
   function finish() {
-    setStatus(place.id, 'done').then(onBack, () => setMessage('Der Fortschritt konnte nicht gespeichert werden.'))
+    setStatus(place.id, 'done').then(onBack, () => fail('Der Fortschritt konnte nicht gespeichert werden.'))
   }
 
   function tryCode(value: string) {
     setStream(undefined)
     if (checkCode(place.id, value) === 'reached') reach()
-    else setMessage(WRONG_PLACE)
+    else say(WRONG_PLACE)
   }
 
   async function startScan() {
-    setMessage('')
+    say('')
     try {
       setStream(await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }))
     } catch (e) {
       const isDenied = e instanceof DOMException && e.name === 'NotAllowedError'
       if (isDenied) setDenied(true)
-      setMessage(isDenied ? 'Die Kamera ist nicht freigegeben.' : 'Die Kamera ist nicht verfügbar. Gebt den Code ein.')
+      fail(isDenied ? 'Die Kamera ist nicht freigegeben.' : 'Die Kamera ist nicht verfügbar. Gebt den Code ein.')
     }
   }
 
@@ -51,10 +71,10 @@ export function PlaceView({ place, onBack }: Props) {
     let stopped = false
     let timer: ReturnType<typeof setTimeout>
     el.srcObject = stream
-    el.play().catch(() => setMessage('Das Kamerabild konnte nicht gestartet werden.'))
+    el.play().catch(() => fail('Das Kamerabild konnte nicht gestartet werden.'))
     const scanFailed = () => {
       setStream(undefined)
-      setMessage('Der QR-Code konnte nicht gelesen werden. Gebt den Code ein.')
+      fail('Der QR-Code konnte nicht gelesen werden. Gebt den Code ein.')
     }
     qrReader()
       .then((read) => {
@@ -80,20 +100,22 @@ export function PlaceView({ place, onBack }: Props) {
   function checkPosition() {
     if (!navigator.geolocation) {
       setDenied(true)
-      setMessage('Dieses Gerät kann den Standort nicht bestimmen.')
+      fail('Dieses Gerät kann den Standort nicht bestimmen.')
       return
     }
-    setMessage('Standort wird geprüft …')
+    say('Standort wird geprüft …')
     navigator.geolocation.getCurrentPosition(
       // Only the yes/no result is kept; the coordinates are dropped here.
-      ({ coords }) =>
-        isWithinRadius({ lat: coords.latitude, lon: coords.longitude }, place, RADIUS_M)
-          ? reach()
-          : setMessage('Ihr seid noch nicht nah genug am Ort. Scannt den QR-Code.'),
+      ({ coords }) => {
+        // An answer after leaving must not mark the place as reached.
+        if (left.current) return
+        if (isWithinRadius({ lat: coords.latitude, lon: coords.longitude }, place, RADIUS_M)) reach()
+        else say('Ihr seid noch nicht nah genug am Ort. Scannt den QR-Code.')
+      },
       (err) => {
         const isDenied = err.code === err.PERMISSION_DENIED
         if (isDenied) setDenied(true)
-        setMessage(isDenied ? 'Der Standort ist nicht freigegeben.' : 'Der Standort ist gerade nicht verfügbar. Scannt den QR-Code.')
+        fail(isDenied ? 'Der Standort ist nicht freigegeben.' : 'Der Standort ist gerade nicht verfügbar. Scannt den QR-Code.')
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     )
@@ -102,9 +124,11 @@ export function PlaceView({ place, onBack }: Props) {
   return (
     <section aria-labelledby="place-title">
       <h2 id="place-title" tabIndex={-1}>{place.name}</h2>
+      {error && <p role="alert">{error}</p>}
+      {/* One node for both views, or the switch to "reached" would not be announced. */}
+      <p role="status" class={reached ? 'success' : undefined}>{reached ? 'Station erreicht!' : message}</p>
       {reached ? (
         <>
-          <p class="success">Station erreicht!</p>
           <p>Hier beginnt eure Aufgabe an diesem Ort.</p>
           <button type="button" onClick={finish}>Aufgabe erledigt</button>
         </>
@@ -127,7 +151,6 @@ export function PlaceView({ place, onBack }: Props) {
             <input id="place-code" aria-describedby="place-code-hint" value={code} onInput={(e) => setCode(e.currentTarget.value)} />
             <button type="submit">Code prüfen</button>
           </form>
-          <p role="status">{message}</p>
           {denied && (
             <>
               <p>Ohne Kamera oder Standort könnt ihr diesen Ort im Klassenzimmer spielen.</p>
