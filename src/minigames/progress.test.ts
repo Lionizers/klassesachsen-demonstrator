@@ -17,6 +17,16 @@ describe('progress', () => {
     expect(placeState(p)).toBe('new')
   })
 
+  it('aligns stored progress with the current stations: new ones open, removed ones dropped', () => {
+    const stale: Progress = {
+      status: { [first]: 'done', [second]: 'skipped', removed: 'done' },
+      events: [{ code: 'E1', minigameId: first, at: 1, value: 'start' }],
+    }
+    const p = initialProgress(burgFunkelfels, stale)
+    expect(p.status).toEqual({ [first]: 'done', [second]: 'skipped', [third]: 'open' })
+    expect(p.events).toEqual(stale.events)
+  })
+
   it('AE1: a correct attempt finishes the station with start, attempt, status and end events', () => {
     const p = run({ type: 'open', id: first, at: 1 }, { type: 'attempt', id: first, correct: true, at: 2 })
     expect(p.status[first]).toBe('done')

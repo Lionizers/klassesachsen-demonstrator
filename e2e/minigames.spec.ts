@@ -1,8 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { burgFunkelfels } from '../src/minigames/burg-funkelfels'
+import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
-import { MINIGAMES_KEY } from '../src/minigames/progress'
+import { MINIGAMES_KEY, type Progress } from '../src/minigames/progress'
 import { DB_NAME, STORE } from '../src/store/db'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
@@ -18,8 +18,8 @@ async function axeClean(page: Page) {
 async function enterPlace(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await page.getByRole('button', { name: 'Burg Funkelfels erkunden' }).click()
-  await expect(page.getByRole('heading', { name: 'Burg Funkelfels' })).toBeVisible()
+  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
+  await expect(page.getByRole('heading', { name: PLACE_NAME })).toBeVisible()
 }
 
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
@@ -42,7 +42,7 @@ test('AE1: solving the puzzle grants the item and finishes the station', async (
   await axeClean(page)
   await solvePuzzle(page)
   await expect(page.getByText(`Du erhältst: ${puzzle.reward.standard}`)).toBeVisible()
-  await page.getByRole('button', { name: 'Zurück zur Burg' }).click()
+  await page.getByRole('button', { name: `Zurück zu ${PLACE_NAME}` }).click()
   await expect(page.getByRole('listitem').filter({ hasText: puzzle.title.standard })).toContainText('geschafft')
   await expect(station(page, puzzle.title.standard)).toHaveCount(0)
 })
@@ -90,7 +90,7 @@ test('AE6: a skipped station can be resumed later, also after a reload', async (
   await expect(page.getByText('Angefangen')).toBeVisible()
   await expect(page.getByRole('listitem').filter({ hasText: puzzle.title.standard })).toContainText('später nachholen')
   await page.reload()
-  await page.getByRole('button', { name: 'Burg Funkelfels erkunden' }).click()
+  await page.getByRole('button', { name: `${PLACE_NAME} erkunden` }).click()
   await expect(page.getByText('Angefangen')).toBeVisible()
   await station(page, puzzle.title.standard).click()
   await solvePuzzle(page)
@@ -147,4 +147,86 @@ test('saving progress fails: the place screen shows an error', async ({ page }) 
   // Opening a station already records E1 and saves.
   await station(page, estimate.title.standard).click()
   await expect(page.getByRole('alert')).toHaveText('Der Spielstand konnte nicht gespeichert werden.')
+  await expect(page.getByRole('heading', { name: estimate.title.standard })).toBeVisible()
+  await expect(page.getByLabel(`Eure Schätzung (${estimate.unit})`)).toBeVisible()
+})
+
+const press = async (page: Page, name: string) => {
+  await page.getByRole('button', { name, exact: true }).focus()
+  await page.keyboard.press('Enter')
+}
+const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
+const hintButton = 'Fuchs Fidelius um Hilfe bitten'
+
+test('focus moves to the heading of every view inside the place', async ({ page }) => {
+  await enterPlace(page)
+  await press(page, puzzle.title.standard)
+  await expect(heading(page, puzzle.title.standard)).toBeFocused()
+  await press(page, 'Später nachholen')
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await press(page, estimate.title.standard)
+  await page.getByLabel(`Eure Schätzung (${estimate.unit})`).fill(String(estimate.target))
+  await press(page, 'Prüfen')
+  await expect(heading(page, `${estimate.title.standard}: geschafft!`)).toBeFocused()
+  await press(page, `Zurück zu ${PLACE_NAME}`)
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+})
+
+test('hints are announced, capped at the number of hints, and keep the focus', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, puzzle.title.standard).click()
+  await page.getByRole('button', { name: hintButton }).focus()
+  for (let i = 0; i <= puzzle.hints.length; i++) await page.keyboard.press('Enter')
+  await expect(page.getByText(puzzle.hints.at(-1)!.standard)).toBeVisible()
+  await expect(page.getByText(puzzle.hints[0].standard).locator('..')).toHaveAttribute('aria-live', 'polite')
+  await expect(page.locator('body')).not.toBeFocused()
+  await expect(page.getByRole('button', { name: hintButton })).toBeFocused()
+  await expect.poll(async () => {
+    const stored = (await readStored(page, MINIGAMES_KEY)) as Progress
+    return stored.events.filter((e) => e.code === 'E5' && e.minigameId === puzzle.id).length
+  }).toBe(puzzle.hints.length)
+})
+
+test('shown hints survive skipping and reopening the station', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, puzzle.title.standard).click()
+  await page.getByRole('button', { name: hintButton }).click()
+  await expect(page.getByText(puzzle.hints[0].standard)).toBeVisible()
+  await page.getByRole('button', { name: 'Später nachholen' }).click()
+  await station(page, puzzle.title.standard).click()
+  await expect(page.getByText(puzzle.hints[0].standard)).toBeVisible()
+})
+
+test('puzzle: moving a piece to the edge keeps the focus, announces the position, and stops there', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, puzzle.title.standard).click()
+  const pieces = page.getByRole('list', { name: 'Reihenfolge' }).getByRole('listitem')
+  const second = puzzle.pieces[1].standard
+  await page.getByRole('button', { name: `${second} nach oben` }).focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('status')).toHaveText(`„${second}“ jetzt an Stelle 1.`)
+  await expect(page.getByRole('list', { name: 'Reihenfolge' }).locator(':focus')).toHaveCount(1)
+  const order = await pieces.allTextContents()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('list', { name: 'Reihenfolge' }).locator(':focus')).toHaveCount(1)
+  expect(await pieces.allTextContents()).toEqual(order)
+  expect(order[0]).toContain(second)
+})
+
+test('puzzle: repeated wrong attempts are announced with their number', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, puzzle.title.standard).click()
+  await page.getByRole('button', { name: 'Prüfen' }).click()
+  await expect(page.getByRole('status')).toContainText('Versuch 1')
+  const first = await page.getByRole('status').textContent()
+  await page.getByRole('button', { name: 'Prüfen' }).click()
+  await expect(page.getByRole('status')).toContainText('Versuch 2')
+  expect(await page.getByRole('status').textContent()).not.toEqual(first)
+})
+
+test('dilemma: the next voting role is announced', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, dilemma.title.standard).click()
+  await page.getByRole('button', { name: dilemma.options[0].label.standard }).click()
+  await expect(page.getByRole('heading', { name: /Navigation stimmt ab/ })).toHaveAttribute('aria-live', 'polite')
 })

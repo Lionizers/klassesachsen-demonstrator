@@ -27,8 +27,16 @@ export type ProgressAction =
   | { type: 'decide'; id: string; option: 0 | 1; at: number }
   | { type: 'skip'; id: string; at: number }
 
-export function initialProgress(games: Minigame[]): Progress {
-  return { status: Object.fromEntries(games.map((g) => [g.id, 'open'])), events: [] }
+/** Aligns a stored state with the current stations: stations added since are open, removed ones are dropped. */
+export function initialProgress(games: Minigame[], stored?: Progress): Progress {
+  return {
+    status: Object.fromEntries(games.map((g) => [g.id, stored?.status[g.id] ?? 'open'])),
+    events: stored?.events ?? [],
+  }
+}
+
+export function countEvents(progress: Progress, code: GameEvent['code'], minigameId: string): number {
+  return progress.events.filter((e) => e.code === code && e.minigameId === minigameId).length
 }
 
 export function reduceProgress(state: Progress, action: ProgressAction): Progress {
@@ -47,7 +55,7 @@ export function reduceProgress(state: Progress, action: ProgressAction): Progres
     case 'hint':
       return add(event('E5', action.index + 1))
     case 'attempt': {
-      const attempt = event('E3', state.events.filter((e) => e.code === 'E3' && e.minigameId === minigameId).length + 1)
+      const attempt = event('E3', countEvents(state, 'E3', minigameId) + 1)
       return action.correct ? finish('done', attempt) : add(attempt)
     }
     case 'vote':

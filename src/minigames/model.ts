@@ -11,6 +11,11 @@ export type DilemmaOption = { label: Text; consequence: Text }
 export type Dilemma = Base & { kind: 'dilemma'; options: [DilemmaOption, DilemmaOption] }
 export type Minigame = Puzzle | Estimate | Dilemma
 
+/** Makes every switch over `kind` fail to compile when a new kind is added. */
+export function unreachable(value: never): never {
+  throw new Error(`unknown minigame kind: ${JSON.stringify(value)}`)
+}
+
 export function isPuzzleSolved(game: Puzzle, order: number[]): boolean {
   return order.length === game.solution.length && order.every((piece, i) => piece === game.solution[i])
 }
@@ -28,10 +33,21 @@ export function dilemmaOutcome(votes: Record<Role, 0 | 1>): 0 | 1 {
 // A dilemma shows consequences, never a verdict.
 const VERDICT = /richtig|falsch/i
 
+function ownTexts(game: Minigame): Text[] {
+  switch (game.kind) {
+    case 'puzzle':
+      return game.pieces
+    case 'estimate':
+      return []
+    case 'dilemma':
+      return game.options.flatMap((o) => [o.label, o.consequence])
+    default:
+      return unreachable(game)
+  }
+}
+
 function texts(game: Minigame): Text[] {
-  const own =
-    game.kind === 'puzzle' ? game.pieces : game.kind === 'dilemma' ? game.options.flatMap((o) => [o.label, o.consequence]) : []
-  return [game.title, game.prompt, game.reward, ...game.hints, ...own]
+  return [game.title, game.prompt, game.reward, ...game.hints, ...ownTexts(game)]
 }
 
 export function validateMinigames(games: Minigame[]): string[] {
@@ -45,18 +61,27 @@ export function validateMinigames(games: Minigame[]): string[] {
     for (const t of texts(game)) {
       if (!t.standard.trim() || !t.easy.trim()) errors.push(`${at} empty text ${JSON.stringify(t)}`)
     }
-    if (game.kind === 'puzzle') {
-      const sorted = [...game.solution].sort((a, b) => a - b)
-      if (sorted.length !== game.pieces.length || sorted.some((piece, i) => piece !== i)) {
-        errors.push(`${at} solution must be a permutation of the pieces`)
-      } else if (game.solution.every((piece, i) => piece === i)) {
-        errors.push(`${at} pieces must not start in the solved order`)
+    switch (game.kind) {
+      case 'puzzle': {
+        const sorted = [...game.solution].sort((a, b) => a - b)
+        if (sorted.length !== game.pieces.length || sorted.some((piece, i) => piece !== i)) {
+          errors.push(`${at} solution must be a permutation of the pieces`)
+        } else if (game.solution.every((piece, i) => piece === i)) {
+          errors.push(`${at} pieces must not start in the solved order`)
+        }
+        break
       }
-    } else if (game.kind === 'estimate') {
-      if (!(game.target > 0)) errors.push(`${at} target must be positive`)
-      if (!(game.tolerancePercent > 0)) errors.push(`${at} tolerance must be positive`)
-    } else if (texts(game).some((t) => VERDICT.test(t.standard) || VERDICT.test(t.easy))) {
-      errors.push(`${at} dilemma texts must not judge right or wrong`)
+      case 'estimate':
+        if (!(game.target > 0)) errors.push(`${at} target must be positive`)
+        if (!(game.tolerancePercent > 0)) errors.push(`${at} tolerance must be positive`)
+        break
+      case 'dilemma':
+        if (texts(game).some((t) => VERDICT.test(t.standard) || VERDICT.test(t.easy))) {
+          errors.push(`${at} dilemma texts must not judge right or wrong`)
+        }
+        break
+      default:
+        unreachable(game)
     }
   }
   return errors

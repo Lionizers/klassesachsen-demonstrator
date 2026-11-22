@@ -5,6 +5,7 @@ import { load } from './store/db'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { Place } from './minigames/Place'
+import { focusHeading } from './focus'
 import type { Screen, ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
@@ -30,8 +31,7 @@ export function App() {
 
   function go(next: Screen) {
     setScreen(next)
-    // Keyboard and screen reader users would otherwise lose focus with the removed button.
-    requestAnimationFrame(() => document.querySelector<HTMLElement>('main h2')?.focus())
+    focusHeading()
   }
 
   const Current = screen ? screens[screen] : null
