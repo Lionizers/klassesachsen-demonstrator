@@ -71,8 +71,14 @@ export function PlaceView({ place, onBack }: Props) {
     let stopped = false
     let timer: ReturnType<typeof setTimeout>
     el.srcObject = stream
-    el.play().catch(() => fail('Das Kamerabild konnte nicht gestartet werden.'))
+    // Without a camera image there is nothing to scan; stop, or the scan error overwrites this message.
+    el.play().catch(() => {
+      stopped = true
+      setStream(undefined)
+      fail('Das Kamerabild konnte nicht gestartet werden.')
+    })
     const scanFailed = () => {
+      if (stopped) return
       setStream(undefined)
       fail('Der QR-Code konnte nicht gelesen werden. Gebt den Code ein.')
     }
