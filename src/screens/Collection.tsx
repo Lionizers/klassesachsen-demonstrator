@@ -1,13 +1,15 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useContext, useEffect, useState } from 'preact/hooks'
 import { load, save } from '../store/db'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
 import type { Minigame } from '../minigames/model'
 import { MINIGAMES_KEY, initialProgress, type Progress } from '../minigames/progress'
 import { CHARACTER_KEY, collected, wornOf, type Character } from '../collection/items'
 import { ArtPaths, BODY, CHARACTER_VIEWBOX, ItemImage } from '../collection/ItemArt'
+import { SettingsContext, text } from '../settings'
 import type { ScreenProps } from './types'
 
 export function Collection({ go }: ScreenProps) {
+  const { easy } = useContext(SettingsContext)
   const [items, setItems] = useState<Minigame[]>()
   const [worn, setWorn] = useState<string[]>([])
   const [error, setError] = useState<string>()
@@ -52,7 +54,7 @@ export function Collection({ go }: ScreenProps) {
         viewBox={CHARACTER_VIEWBOX}
         class="character"
         role="img"
-        aria-label={wornItems.length ? `Euer Charakter trägt: ${wornItems.map((i) => i.reward.standard).join(', ')}` : 'Euer Charakter trägt noch nichts.'}
+        aria-label={wornItems.length ? `Euer Charakter trägt: ${wornItems.map((i) => text(i.reward, easy)).join(', ')}` : 'Euer Charakter trägt noch nichts.'}
       >
         <ArtPaths paths={BODY} />
         {wornItems.map((item) => (
@@ -68,9 +70,9 @@ export function Collection({ go }: ScreenProps) {
         <ul aria-label="Gesammelt" class="items">
           {items.map((item) => (
             <li key={item.id}>
-              <ItemImage art={item.item} /> {item.reward.standard}{' '}
+              <ItemImage art={item.item} /> {text(item.reward, easy)}{' '}
               <button type="button" aria-pressed={worn.includes(item.id)} onClick={() => toggle(item.id)}>
-                {item.reward.standard} tragen
+                {text(item.reward, easy)} tragen
               </button>
             </li>
           ))}
@@ -83,7 +85,7 @@ export function Collection({ go }: ScreenProps) {
             {open.map((game) => (
               <li key={game.id} class="open">
                 <ItemImage art={game.item} />
-                <span>{game.reward.standard}: <span class="hint">Station „{game.title.standard}“ bei {PLACE_NAME} schaffen</span></span>
+                <span>{text(game.reward, easy)}: <span class="hint">Station „{text(game.title, easy)}“ bei {PLACE_NAME} schaffen</span></span>
               </li>
             ))}
           </ul>
