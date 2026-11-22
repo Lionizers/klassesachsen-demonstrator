@@ -22,7 +22,10 @@ const mapButton = (page: Page) => page.getByRole('button', { name: new RegExp(`^
 /** From the group screen over the map to the stations; waits for the heading focus so later key presses are not stolen. */
 async function reachPlace(page: Page) {
   await page.getByRole('button', { name: 'Zur Karte' }).click()
+  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
   await mapButton(page).click()
+  // Typing before the place view has settled (heading focused) races the view change.
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
   await page.getByLabel('Code vom Schild').fill('FUNKELFELS')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()

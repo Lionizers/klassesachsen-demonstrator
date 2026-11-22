@@ -59,7 +59,8 @@ async function openMap(page: Page) {
 async function openPlace(page: Page, name: string) {
   await openMap(page)
   await page.getByRole('button', { name: new RegExp(`^${name}`) }).click()
-  await expect(page.getByRole('heading', { name })).toBeVisible()
+  // The view is settled once its heading has the focus; typing earlier races the view change.
+  await expect(page.getByRole('heading', { name })).toBeFocused()
 }
 
 const openFunkelfels = (page: Page) => openPlace(page, 'Burg Funkelfels')
