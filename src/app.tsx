@@ -2,16 +2,18 @@ import { useEffect, useState } from 'preact/hooks'
 import type { FunctionComponent } from 'preact'
 import { GROUP_KEY, type Group } from './group'
 import { load } from './store/db'
+import { focusHeading } from './focus'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { Place } from './minigames/Place'
-import { focusHeading } from './focus'
+import { PlaceMap } from './screens/PlaceMap'
 import type { Screen, ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
   start: GroupStart,
   roles: GroupRoles,
   place: Place,
+  map: PlaceMap,
 }
 
 export function App() {
