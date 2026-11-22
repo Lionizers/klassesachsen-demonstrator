@@ -152,8 +152,8 @@ test('saving progress fails: the place screen shows an error', async ({ page }) 
 })
 
 const press = async (page: Page, name: string) => {
-  await page.getByRole('button', { name, exact: true }).focus()
-  await page.keyboard.press('Enter')
+  // locator.press focuses and presses in one step, so a pending heading focus cannot slip in between.
+  await page.getByRole('button', { name, exact: true }).press('Enter')
 }
 const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
 const hintButton = 'Fuchs Fidelius um Hilfe bitten'
@@ -175,6 +175,8 @@ test('focus moves to the heading of every view inside the place', async ({ page 
 test('hints are announced, capped at the number of hints, and keep the focus', async ({ page }) => {
   await enterPlace(page)
   await station(page, puzzle.title.standard).click()
+  // Opening a station moves focus to its heading in the next frame; wait for it before focusing the hint button.
+  await expect(page.getByRole('heading', { name: puzzle.title.standard })).toBeFocused()
   await page.getByRole('button', { name: hintButton }).focus()
   for (let i = 0; i <= puzzle.hints.length; i++) await page.keyboard.press('Enter')
   await expect(page.getByText(puzzle.hints.at(-1)!.standard)).toBeVisible()
@@ -202,6 +204,7 @@ test('puzzle: moving a piece to the edge keeps the focus, announces the position
   await station(page, puzzle.title.standard).click()
   const pieces = page.getByRole('list', { name: 'Reihenfolge' }).getByRole('listitem')
   const second = puzzle.pieces[1].standard
+  await expect(page.getByRole('heading', { name: puzzle.title.standard })).toBeFocused()
   await page.getByRole('button', { name: `${second} nach oben` }).focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('status')).toHaveText(`„${second}“ jetzt an Stelle 1.`)
