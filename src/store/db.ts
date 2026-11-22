@@ -30,7 +30,10 @@ export async function save(key: string, value: unknown): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite')
     tx.objectStore(STORE).put(value, key)
-    tx.oncomplete = () => resolve()
+    tx.oncomplete = () => {
+      dispatchEvent(new CustomEvent('kv-saved', { detail: key }))
+      resolve()
+    }
     tx.onerror = () => reject(tx.error)
     // Quota errors abort the transaction without an error event on it.
     tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'))

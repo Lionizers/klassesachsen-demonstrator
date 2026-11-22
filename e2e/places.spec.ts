@@ -214,11 +214,12 @@ test('quest AE5: Kloster Krümelbach keeps the placeholder, can be finished and 
 test('AE7: map image and places stay visible offline', async ({ page, context }) => {
   await openMap(page)
   await page.evaluate(async () => { await navigator.serviceWorker.ready })
+  // The reload restores the stored screen; it must have landed before the page goes.
+  await expect.poll(async () => (await dumpStore(page)).screen).toBe('map')
   // The first load is not controlled yet; a second load is served through the worker.
   await page.reload()
   await context.setOffline(true)
   await page.reload()
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
   await expect(page.getByRole('img', { name: /Fantasiekarte/ })).toBeVisible()
   await expect(page.getByRole('list', { name: 'Orte' }).getByRole('button')).toHaveCount(3)
 })
@@ -231,7 +232,7 @@ test('AE8: no position is stored or sent, only that the place was reached', asyn
   page.on('request', (r) => sent.push(`${r.method()} ${r.url()} ${r.postData() ?? ''}`))
   await page.getByRole('button', { name: 'Standort prüfen' }).click()
   await expect(stations(page)).toBeVisible()
-  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, progress: { funkelfels: 'started' } })
+  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, progress: { funkelfels: 'started' }, screen: 'map' })
   expect(sent).toEqual([])
 })
 
@@ -372,8 +373,7 @@ test('a GPS answer arriving after leaving the place is discarded', async ({ page
   await page.evaluate(() => (window as unknown as { answerGps: () => void }).answerGps())
   // A late write would land within milliseconds; give it time before reading the store.
   await page.waitForTimeout(300)
-  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 } })
+  expect(await dumpStore(page)).toEqual({ group: { name: 'Otter', round: 0 }, screen: 'map' })
   await page.reload()
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
   await expect(page.getByRole('button', { name: 'Burg Funkelfels – offen' })).toBeVisible()
 })
