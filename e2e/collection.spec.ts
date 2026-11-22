@@ -136,7 +136,8 @@ test('AE6: collection and worn items survive a reload', async ({ page }) => {
   await toggle(page).click()
   await expect.poll(() => readStored(page, CHARACTER_KEY)).toEqual({ worn: [estimate.id] })
   await page.reload()
-  await openCollection(page)
+  // The app reopens the last view (offline AE3), so the collection is already open.
+  await expect(page.getByRole('heading', { name: 'Sammlung' })).toBeVisible()
   await expect(collectedList(page)).toHaveText([new RegExp(reward)])
   await expect(toggle(page)).toHaveAttribute('aria-pressed', 'true')
   await expect(character(page)).toHaveAccessibleName(`Euer Charakter trägt: ${reward}`)
