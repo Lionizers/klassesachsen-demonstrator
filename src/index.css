@@ -123,7 +123,12 @@ form { background: var(--card); border: var(--edge) solid var(--line); border-ra
 .options { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); margin: 0.5rem 0 0; }
 .options button { overflow-wrap: anywhere; }
 .play h3 { margin-top: 0; }
-@media (max-width: 40rem) { .station { grid-template-columns: 1fr; } }
+@media (max-width: 40rem) {
+  .station { grid-template-columns: 1fr; }
+  /* The grip and two arrows leave little width for a piece on a phone. */
+  .play { padding: var(--s3); }
+  .pieces li { gap: var(--s1); padding-left: 0; }
+}
 
 /* Fidelius and his speech bubble. */
 .fidelius { display: flex; align-items: flex-end; gap: 0.5rem; margin: 1rem 0; }
@@ -172,7 +177,7 @@ span.tile-main { padding: 0.25rem; }
 /* Only the grip takes the finger; the rest of the list still scrolls the page. */
 .grip { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; order: -1; color: var(--muted); cursor: grab; touch-action: none; user-select: none; }
 .dragging .grip { cursor: grabbing; }
-.pieces li span:not(.grip) { flex: 1; }
+.pieces li span:not(.grip) { flex: 1; min-width: 0; overflow-wrap: anywhere; hyphens: auto; }
 .pieces button { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .reward { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
 .character { display: block; width: min(100%, 12rem); height: auto; margin: 0.5rem 0; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; }
