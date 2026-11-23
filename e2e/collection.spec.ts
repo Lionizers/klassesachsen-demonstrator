@@ -76,7 +76,7 @@ test('AE5: no points, ranks or chance, and the same play gives the same collecti
     const page = await context.newPage()
     await collectEstimate(page)
     await openCollection(page)
-    const text = (await page.locator('main section').textContent()) ?? ''
+    const text = (await page.getByRole('region', { name: 'Sammlung' }).textContent()) ?? ''
     expect(text).not.toMatch(/Punkt|Platz|Rang|Zufall|Glück|Gruppen/)
     texts.push(text)
     await context.close()

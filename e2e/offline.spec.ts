@@ -76,7 +76,7 @@ test('AE2/AE4/AE5: offline the map and all three minigames work, results queue u
   await expect(page.getByRole('status').filter({ hasText: 'Offene Ergebnisse' })).toHaveCount(0)
   await expect(page.getByRole('alert')).toHaveCount(0)
 
-  // The collection works offline too; only the collage is still missing.
+  // The collection works offline too.
   await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
   await leaveToGroup(page)
   await page.getByRole('button', { name: 'Sammlung', exact: true }).click()

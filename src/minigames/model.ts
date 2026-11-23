@@ -8,6 +8,7 @@ export type Text = { standard: string; easy: string }
  * Plain path data, so the same art renders as SVG and on a canvas via Path2D.
  */
 export type ItemArt = { at: [number, number]; paths: { d: string; fill: string }[] }
+export const ITEM_BOX = 32
 /** `reward` names the item that `item` draws. */
 type Base = { id: string; title: Text; prompt: Text; hints: Text[]; reward: Text; item: ItemArt }
 /** Pieces are shown in data order; `solution` lists piece indices in the solved order. */

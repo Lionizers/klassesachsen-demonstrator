@@ -6,6 +6,7 @@ import { MINIGAMES_KEY, initialProgress, type Progress } from '../minigames/prog
 import { CHARACTER_KEY, collected, wornOf, type Character } from '../collection/items'
 import { ArtPaths, BODY, CHARACTER_VIEWBOX, ItemImage } from '../collection/ItemArt'
 import { SettingsContext, text } from '../settings'
+import { Collage } from '../collage/Collage'
 import type { ScreenProps } from './types'
 
 export function Collection({ go }: ScreenProps) {
@@ -17,7 +18,8 @@ export function Collection({ go }: ScreenProps) {
   useEffect(() => {
     Promise.all([load<Progress>(MINIGAMES_KEY), load<Character>(CHARACTER_KEY)]).then(
       ([progress, character]) => {
-        const found = collected(GAMES, initialProgress(GAMES, progress))
+        const state = initialProgress(GAMES, progress)
+        const found = collected(GAMES, state)
         setItems(found)
         setWorn(wornOf(character, found))
       },
@@ -91,6 +93,7 @@ export function Collection({ go }: ScreenProps) {
           </ul>
         </>
       )}
+      <Collage items={items} unlocked={open.length === 0} />
       {back}
     </section>
   )
