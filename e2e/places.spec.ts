@@ -1,22 +1,15 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
 import QRCode from 'qrcode'
 import { EARTH_RADIUS_M } from '../src/places/geo'
 import { PLACES } from '../src/places/places'
 import { FAIL_PUT, failPut } from './fail-put'
-import { dumpStore, openMapFromGroup } from './helpers'
+import { axeClean, dumpStore, openMapFromGroup } from './helpers'
 
-const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const funkelfels = PLACES.find((p) => p.id === 'funkelfels')!
 const northOf = (m: number) => ({
   latitude: funkelfels.lat + ((m / EARTH_RADIUS_M) * 180) / Math.PI,
   longitude: funkelfels.lon,
 })
-
-async function axeClean(page: Page) {
-  const result = await new AxeBuilder({ page }).withTags(WCAG).analyze()
-  expect(result.violations).toEqual([])
-}
 
 /**
  * Camera fake: getUserMedia yields a canvas stream showing `qrImage`, or rejects with a DOMException named `reject`.

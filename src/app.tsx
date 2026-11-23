@@ -4,7 +4,7 @@ import { GROUP_KEY, type Group } from './group'
 import { load, save } from './store/db'
 import { focusHeading } from './focus'
 import { OfflineStatus } from './offline'
-import { DEFAULTS, SETTINGS_KEY, SettingsContext, SettingsPanel, type Settings } from './settings'
+import { DEFAULTS, ReadAloud, SETTINGS_KEY, SettingsContext, SettingsPanel, type Settings } from './settings'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { PlaceMap } from './screens/PlaceMap'
@@ -55,6 +55,7 @@ export function App() {
         <h1>Demonstrator der Lionizers GmbH</h1>
         <p>Ortsbasierte Lern- und Entdecker-App für Schulklassen · Web-App, installierbar und offline nutzbar</p>
         <OfflineStatus />
+        <ReadAloud />
         <SettingsPanel settings={settings} onChange={setSettings} />
       </header>
       <main>

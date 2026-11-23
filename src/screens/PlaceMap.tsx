@@ -106,9 +106,8 @@ export function PlaceMap({ go, group }: ScreenProps) {
         <ul aria-label="Orte" class="map-places">
           {PLACES.map((p) => (
             <li key={p.id} style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-              <button type="button" onClick={() => show(p)}>
-                {p.name} – {STATUS_LABEL[progress[p.id] ?? 'open']}
-              </button>
+              {/* One text node: separate ones lie over different map shapes, and axe then cannot measure the contrast. */}
+              <button type="button" onClick={() => show(p)}>{`${p.name} – ${STATUS_LABEL[progress[p.id] ?? 'open']}`}</button>
             </li>
           ))}
         </ul>

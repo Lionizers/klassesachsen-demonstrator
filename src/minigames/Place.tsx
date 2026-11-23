@@ -1,9 +1,10 @@
+import { Fragment } from 'preact'
 import { useContext, useEffect, useState } from 'preact/hooks'
 import { rolesFor, type Group, type Role } from '../group'
 import { focusHeading } from '../focus'
 import { load, save } from '../store/db'
 import { ItemImage } from '../collection/ItemArt'
-import { SettingsContext, playSuccessTone, text } from '../settings'
+import { ReadAloud, SettingsContext, playSuccessTone, text } from '../settings'
 import { GUIDE_NAME, PLACE_NAME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle, type Text } from './model'
 import { MINIGAMES_KEY, countEvents, initialProgress, placeState, reduceProgress, type Progress, type ProgressAction } from './progress'
@@ -51,12 +52,19 @@ export function Place({ group, onBack }: Props) {
   }
 
   if (result) {
+    const earned = `Du erhältst: ${text(result.game.reward, easy)}`
     return (
       <section aria-labelledby="result-title">
         {alert}
         <h2 id="result-title" tabIndex={-1}>{text(result.game.title, easy)}: geschafft!</h2>
-        {result.consequence && <p>{text(result.consequence, easy)}</p>}
-        <p class="earned">Du erhältst: {text(result.game.reward, easy)}</p>
+        {result.consequence && (
+          <>
+            <p>{text(result.consequence, easy)}</p>
+            <ReadAloud text={text(result.consequence, easy)} />
+          </>
+        )}
+        <p class="earned">{earned}</p>
+        <ReadAloud text={earned} />
         <button type="button" onClick={() => show({})}>Zurück zur Übersicht von {PLACE_NAME}</button>
       </section>
     )
@@ -74,8 +82,8 @@ export function Place({ group, onBack }: Props) {
           attempts={countEvents(progress, 'E3', active.id)}
           apply={apply}
           onDone={(consequence) => {
-            if (settings.sound) playSuccessTone()
             show({ result: { game: active, consequence } })
+            if (settings.sound) playSuccessTone()
           }}
           onSkip={() => {
             apply({ type: 'skip', id: active.id, at: Date.now() })
@@ -147,11 +155,15 @@ function Station({ game, roles, hintsShown, attempts, apply, onDone, onSkip }: S
     <section aria-labelledby="game-title">
       <h2 id="game-title" tabIndex={-1}>{text(game.title, easy)}</h2>
       <p>{text(game.prompt, easy)}</p>
+      <ReadAloud text={text(game.prompt, easy)} />
       <p class="reward"><ItemImage art={game.item} /> Belohnung: {text(game.reward, easy)}</p>
       {gameView()}
       <div aria-live="polite">
         {game.hints.slice(0, hintsShown).map((hint) => (
-          <p key={hint.standard}>{GUIDE_NAME}: {text(hint, easy)}</p>
+          <Fragment key={hint.standard}>
+            <p>{GUIDE_NAME}: {text(hint, easy)}</p>
+            <ReadAloud text={text(hint, easy)} />
+          </Fragment>
         ))}
       </div>
       {/* aria-disabled instead of disabled: a disabled button would drop the keyboard focus to body. */}
@@ -209,8 +221,8 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
             <li key={piece}>
               <span>{label}</span>{' '}
               {/* aria-disabled instead of disabled: the focused button must stay focusable at the edge. */}
-              <button type="button" aria-label={`${label} nach oben`} aria-disabled={i === 0} onClick={() => move(i, i - 1)}>↑</button>{' '}
-              <button type="button" aria-label={`${label} nach unten`} aria-disabled={i === order.length - 1} onClick={() => move(i, i + 1)}>↓</button>
+              <button type="button" aria-label={`${label} nach oben`} aria-disabled={i === 0} onClick={() => move(i, i - 1)}><Arrow /></button>{' '}
+              <button type="button" aria-label={`${label} nach unten`} aria-disabled={i === order.length - 1} onClick={() => move(i, i + 1)}><Arrow down /></button>
             </li>
           )
         })}
@@ -230,6 +242,13 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
     </>
   )
 }
+
+// A drawn arrow instead of the ↑/↓ glyph: axe cannot measure the contrast of a symbol-only text.
+const Arrow = ({ down }: { down?: boolean }) => (
+  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" style={down ? { transform: 'rotate(180deg)' } : undefined}>
+    <path d="M8 2 L14 9 H10 V14 H6 V9 H2 Z" fill="currentColor" />
+  </svg>
+)
 
 function EstimateView({ game, attempts, attempt }: GameViewProps<Estimate>) {
   const [value, setValue] = useState('')

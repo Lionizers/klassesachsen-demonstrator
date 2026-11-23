@@ -1,9 +1,9 @@
 import { createContext } from 'preact'
-import { useState } from 'preact/hooks'
+import { useContext, useState } from 'preact/hooks'
 import { save } from './store/db'
 import type { Text } from './minigames/model'
 
-export type Tempo = 'normal' | 'langsam'
+export type Tempo = 'normal' | 'slow'
 export type Settings = { rate: number; easy: boolean; contrast: boolean; sound: boolean; tempo: Tempo }
 
 export const SETTINGS_KEY = 'settings'
@@ -12,60 +12,97 @@ export const SettingsContext = createContext<Settings>(DEFAULTS)
 
 export const text = (t: Text, easy: boolean) => (easy ? t.easy : t.standard)
 
-/** Returns false when the browser has no speech output. */
-export function speak(content: string, rate: number): boolean {
-  if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) return false
+const UNAVAILABLE = 'Vorlesen ist in diesem Browser nicht verfügbar.'
+
+// Chrome fills the voice list only after a first request; asking at load has it ready by the first click.
+window.speechSynthesis?.getVoices()
+
+/** Speaks `content` in German; `onFail` gets the notice to show when that is not possible. */
+export function speak(content: string, rate: number, onFail: (notice: string) => void) {
+  const synth = window.speechSynthesis
+  if (!synth || !window.SpeechSynthesisUtterance || !synth.getVoices().some((v) => v.lang.startsWith('de'))) {
+    onFail(UNAVAILABLE)
+    return
+  }
   // A new request replaces the one still speaking instead of queueing behind it.
-  speechSynthesis.cancel()
+  synth.cancel()
   const utterance = new SpeechSynthesisUtterance(content)
   utterance.lang = 'de-DE'
   utterance.rate = rate
-  speechSynthesis.speak(utterance)
-  return true
+  utterance.onerror = (e) => {
+    // Cut off by cancel() for the next request: nothing went wrong.
+    if (e.error !== 'interrupted' && e.error !== 'canceled') onFail('Das Vorlesen hat nicht geklappt.')
+  }
+  synth.speak(utterance)
 }
 
 let audio: AudioContext | undefined
 
 export function playSuccessTone() {
-  // The tone only repeats what the result text already says, so a browser without audio loses nothing.
+  // The tone only repeats what the result text already says, so a failure is logged instead of shown to the group.
+  const failed = (e: unknown) => console.warn('Success tone failed:', e)
   if (!window.AudioContext) return
-  audio ??= new AudioContext()
-  audio.resume()
-  const t = audio.currentTime
-  const gain = audio.createGain()
-  gain.gain.setValueAtTime(0.2, t)
-  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
-  const osc = audio.createOscillator()
-  osc.frequency.value = 880
-  osc.connect(gain).connect(audio.destination)
-  osc.start(t)
-  osc.stop(t + 0.4)
+  try {
+    audio ??= new AudioContext()
+    audio.resume().catch(failed)
+    const t = audio.currentTime
+    const gain = audio.createGain()
+    gain.gain.setValueAtTime(0.2, t)
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4)
+    const osc = audio.createOscillator()
+    osc.frequency.value = 880
+    osc.connect(gain).connect(audio.destination)
+    osc.start(t)
+    osc.stop(t + 0.4)
+  } catch (e) {
+    failed(e)
+  }
+}
+
+/** Reads `text` aloud; without a text it reads the whole current view. */
+export function ReadAloud({ text: content }: { text?: string }) {
+  const { rate } = useContext(SettingsContext)
+  const [notice, setNotice] = useState<string>()
+  return (
+    <>
+      <button
+        type="button"
+        class="read-aloud"
+        aria-label={content && `${content} vorlesen`}
+        onClick={() => {
+          setNotice(undefined)
+          speak(content ?? document.querySelector<HTMLElement>('main section')?.innerText ?? '', rate, setNotice)
+        }}
+      >
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M3 9v6h4l5 5V4L7 9z" fill="currentColor" />
+          <path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" />
+        </svg>
+        Vorlesen
+      </button>
+      {notice && <p role="alert">{notice}</p>}
+    </>
+  )
 }
 
 type PanelProps = { settings: Settings; onChange: (settings: Settings) => void }
 
 export function SettingsPanel({ settings, onChange }: PanelProps) {
-  const [alert, setAlert] = useState<string>()
+  const [error, setError] = useState<string>()
 
   function update(patch: Partial<Settings>) {
     const next = { ...settings, ...patch }
     onChange(next)
     save(SETTINGS_KEY, next).then(
-      () => setAlert(undefined),
-      () => setAlert('Die Einstellungen konnten nicht gespeichert werden.'),
+      () => setError(undefined),
+      () => setError('Die Einstellungen konnten nicht gespeichert werden.'),
     )
-  }
-
-  function readAloud() {
-    const view = document.querySelector<HTMLElement>('main section')
-    setAlert(speak(view?.innerText ?? '', settings.rate) ? undefined : 'Vorlesen ist in diesem Browser nicht verfügbar.')
   }
 
   return (
     <details class="settings">
       <summary>Einstellungen</summary>
-      {alert && <p role="alert">{alert}</p>}
-      <button type="button" onClick={readAloud}>Vorlesen</button>
+      {error && <p role="alert">{error}</p>}
       <label for="rate">Vorlese-Geschwindigkeit: {settings.rate.toLocaleString('de-DE')}×</label>
       <input id="rate" type="range" min="0.5" max="1.5" step="0.25" value={settings.rate}
         onInput={(e) => update({ rate: Number(e.currentTarget.value) })} />
@@ -75,7 +112,7 @@ export function SettingsPanel({ settings, onChange }: PanelProps) {
       <label for="tempo">Spieltempo</label>
       <select id="tempo" value={settings.tempo} onChange={(e) => update({ tempo: e.currentTarget.value as Tempo })}>
         <option value="normal">Normal</option>
-        <option value="langsam">Langsam</option>
+        <option value="slow">Langsam</option>
       </select>
     </details>
   )
