@@ -277,11 +277,17 @@ test.describe('#27 station and teacher view on an iPad', () => {
         await inView(heading(page, title), station.getByText(game.prompt[mode]), station.locator('.play'), help, ...(game.kind === 'dilemma' ? [] : [check]))
         if (game.kind !== 'dilemma') expect(await filledButtons(page)).toEqual(['Prüfen'])
         else expect(await filledButtons(page)).toEqual(game.options.map((o) => o.label[mode]))
-        if (game.kind === 'estimate') {
-          // Measured in one go: the view still slides in, so two separate reads would see it move.
-          const [field, button] = await station.locator('.field-row > *').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()))
-          expect(field.y).toBe(button.y)
-          expect(field.height).toBe(button.height)
+        if (game.kind !== 'dilemma') {
+          // #29 AE1: "Prüfen" sits bottom right in the game card, below the field or list. One read: the view still slides in.
+          const m = await station.locator('.play').evaluate((card) => {
+            const button = Array.from(card.querySelectorAll('button')).find((b) => b.textContent === 'Prüfen')!.getBoundingClientRect()
+            const above = card.querySelector('input, ol')!.getBoundingClientRect()
+            const box = card.getBoundingClientRect()
+            const pad = parseFloat(getComputedStyle(card).paddingRight) + parseFloat(getComputedStyle(card).borderRightWidth)
+            return { right: button.right, inner: box.right - pad, top: button.top, above: above.bottom }
+          })
+          expect(Math.abs(m.right - m.inner)).toBeLessThanOrEqual(1)
+          expect(m.top).toBeGreaterThan(m.above)
         }
         // One read-aloud symbol per text block: 48 × 48, named after its text.
         await help.click()
@@ -360,7 +366,7 @@ test.describe('#27 station and teacher view on an iPad', () => {
     const ys = await page.getByRole('list', { name: 'Indikatoren' }).getByRole('listitem').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().y))
     expect(new Set(ys).size).toBe(1)
     const actions = page.locator('main .actions').filter({ has: page.getByRole('button', { name: 'Kompetenzraster' }) })
-    await expect(actions.getByRole('button')).toHaveText(['Kompetenzraster', 'Bericht', 'Zurück zur Übersicht'])
+    await expect(actions.getByRole('button')).toHaveText(['Zurück zur Übersicht', 'Kompetenzraster', 'Bericht'])
     await touchTargets(page)
     await axeClean(page)
   })
@@ -388,5 +394,109 @@ test.describe('#27 station on a phone', () => {
       const box = (await reader.boundingBox())!
       expect([box.width, box.height]).toEqual([48, 48])
     }
+  })
+})
+
+/** Distances in one read, so the sliding-in view cannot move between two measurements. */
+const gaps = (page: Page) =>
+  page.locator('main section').evaluate((section) => {
+    const r = (sel: string) => section.querySelector(sel)!.getBoundingClientRect()
+    const card = section.querySelector('.play')!
+    const pieces = Array.from(section.querySelectorAll('.pieces li')).map((li) => li.getBoundingClientRect())
+    return {
+      taskToBubble: r('.bubble').top - r('.said').bottom,
+      bubbleToHelp: r('.station button[aria-disabled]').top - r('.bubble').bottom,
+      cardPadding: Math.min(parseFloat(getComputedStyle(card).paddingTop), parseFloat(getComputedStyle(card).paddingLeft)),
+      pieceGap: Math.min(...pieces.slice(1).map((p, i) => p.top - pieces[i].bottom)),
+    }
+  })
+
+/** Left edges of the buttons in the row holding `name`, in DOM order, and the right edge of the row. */
+const row = (page: Page, name: string) =>
+  page.locator('main .actions').filter({ has: page.getByRole('button', { name, exact: true }) }).evaluate((el) => ({
+    names: Array.from(el.querySelectorAll(':scope > button')).map((b) => b.textContent!.trim()),
+    right: el.getBoundingClientRect().right,
+    lastRight: el.lastElementChild!.getBoundingClientRect().right,
+    firstLeft: el.firstElementChild!.getBoundingClientRect().left,
+    left: el.getBoundingClientRect().left,
+  }))
+
+test.describe('#29 actions bottom right, airy spacing', () => {
+  test.use({ viewport: IPAD })
+
+  test('AE4: the puzzle station has room between its groups, in the card and between pieces', async ({ page }) => {
+    await startGroup(page)
+    await reachPlaceFromGroup(page)
+    await page.getByRole('button', { name: puzzle.title.standard }).click()
+    await expect(heading(page, puzzle.title.standard)).toBeFocused()
+    const g = await gaps(page)
+    expect(g.taskToBubble).toBeGreaterThanOrEqual(16)
+    expect(g.bubbleToHelp).toBeGreaterThanOrEqual(16)
+    expect(g.cardPadding).toBeGreaterThanOrEqual(20)
+    expect(g.pieceGap).toBeGreaterThanOrEqual(8)
+  })
+
+  test('AE2/AE3/AE5: card actions bottom right, main action right in its row, two columns of group cards', async ({ page }) => {
+    await page.goto('/')
+    await expect(heading(page, 'Willkommen beim Demonstrator')).toBeVisible()
+    // Welcome checklist: "Ansehen" at the right of each card, level within a row.
+    const checks = await page.getByRole('list', { name: 'Prüfliste' }).getByRole('listitem').evaluateAll((els) =>
+      els.map((li) => {
+        const b = li.querySelector('button')!.getBoundingClientRect()
+        const box = li.getBoundingClientRect()
+        const pad = parseFloat(getComputedStyle(li).paddingRight) + parseFloat(getComputedStyle(li).borderRightWidth)
+        return { gap: box.right - pad - b.right, top: box.top, bottom: b.bottom }
+      }))
+    for (const c of checks) expect(Math.abs(c.gap)).toBeLessThanOrEqual(1)
+    const firstRow = checks.filter((c) => c.top === checks[0].top)
+    expect(new Set(firstRow.map((c) => c.bottom)).size).toBe(1)
+
+    await page.getByRole('button', { name: 'Als Lehrkraft ansehen' }).click()
+    await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
+    const cards = await page.getByRole('list', { name: 'Gruppen' }).getByRole('listitem').evaluateAll((els) =>
+      els.map((li) => {
+        const b = li.querySelector('button')!.getBoundingClientRect()
+        const box = li.getBoundingClientRect()
+        const pad = parseFloat(getComputedStyle(li).paddingRight) + parseFloat(getComputedStyle(li).borderRightWidth)
+        return { x: box.left, gap: box.right - pad - b.right }
+      }))
+    expect(new Set(cards.map((c) => c.x)).size).toBe(2)
+    for (const c of cards) expect(Math.abs(c.gap)).toBeLessThanOrEqual(1)
+    // Overview row: ways back on the left, the action on the right.
+    const overview = await row(page, 'Startcodes drucken')
+    expect(overview.names).toEqual(['Zurück zur App', 'Zurück zur Willkommensseite', 'Startcodes drucken'])
+    expect(Math.abs(overview.lastRight - overview.right)).toBeLessThanOrEqual(1)
+
+    await page.getByRole('button', { name: 'Beispiel Ahorn ansehen' }).click()
+    await expect(heading(page, 'Gruppenansicht Beispiel Ahorn')).toBeFocused()
+    const group = await row(page, 'Bericht')
+    expect(group.names).toEqual(['Zurück zur Übersicht', 'Kompetenzraster', 'Bericht'])
+    expect(Math.abs(group.firstLeft - group.left)).toBeLessThanOrEqual(1)
+    expect(Math.abs(group.lastRight - group.right)).toBeLessThanOrEqual(1)
+
+    await page.getByRole('button', { name: 'Bericht' }).click()
+    await expect(heading(page, 'Bericht Beispiel Ahorn')).toBeFocused()
+    const report = await row(page, 'Drucken oder als PDF speichern')
+    expect(report.names).toEqual(['Zurück zur Gruppenansicht', 'Drucken oder als PDF speichern'])
+    expect(Math.abs(report.lastRight - report.right)).toBeLessThanOrEqual(1)
+  })
+
+  test('AE3: on the group screen "Zur Karte" is the action on the right', async ({ page }) => {
+    await startGroup(page)
+    const r = await row(page, 'Zur Karte')
+    expect(r.names.at(-1)).toBe('Zur Karte')
+    expect(Math.abs(r.lastRight - r.right)).toBeLessThanOrEqual(1)
+  })
+})
+
+test.describe('#29 on a phone', () => {
+  test.use({ viewport: PHONE })
+
+  test('AE5: the group cards of the teacher overview stand in one column', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Als Lehrkraft ansehen' }).click()
+    await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
+    const xs = await page.getByRole('list', { name: 'Gruppen' }).getByRole('listitem').evaluateAll((els) => els.map((li) => li.getBoundingClientRect().left))
+    expect(new Set(xs).size).toBe(1)
   })
 })

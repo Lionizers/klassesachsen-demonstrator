@@ -306,11 +306,9 @@ function EstimateView({ game, attempts, attempt }: GameViewProps<Estimate>) {
       }}
     >
       <label for="estimate">Eure Schätzung ({game.unit})</label>
-      <div class="field-row">
-        <input id="estimate" type="number" inputMode="numeric" value={value} onInput={(e) => setValue(e.currentTarget.value)} />
-        {/* Always active: an empty field gets a hint instead of a dead button. */}
-        <button type="submit" class="primary">Prüfen</button>
-      </div>
+      <input id="estimate" type="number" inputMode="numeric" value={value} onInput={(e) => setValue(e.currentTarget.value)} />
+      {/* Always active: an empty field gets a hint instead of a dead button. */}
+      <button type="submit" class="primary">Prüfen</button>
       <p role="status">{feedback}</p>
     </form>
   )

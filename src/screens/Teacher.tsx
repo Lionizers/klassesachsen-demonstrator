@@ -97,7 +97,10 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
     ...DEMO_GROUPS.map((g) => ({ ...g, demo: true })),
   ].sort((a, b) => a.name.localeCompare(b.name, 'de'))
   const row = 'name' in view ? rows.find((r) => r.name === view.name) : undefined
-  const back = (target: View, label: string) => <button type="button" onClick={() => show(target)}>{label}</button>
+  // `end` marks the first action of a row that belongs on the right, after the ways back.
+  const back = (target: View, label: string, end?: boolean) => (
+    <button type="button" class={end ? 'end' : undefined} onClick={() => show(target)}>{label}</button>
+  )
 
   let content
   const backToApp = <button type="button" onClick={() => go(playScreen(group))}>Zurück zur App</button>
@@ -155,8 +158,8 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
         {indicators(row.progress, GAMES).map((i) => <div key={i.id}><Indicator {...i} /></div>)}
         <p>Die Zuordnung zu den Niveaustufen ist eine Beispielregel. Der Bericht beschreibt die Gruppe als Ganzes und ist eine Grundlage für das Gespräch mit der Klasse.</p>
         <div class="actions">
-          <button type="button" onClick={() => print()}>Drucken oder als PDF speichern</button>
           {back({ kind: 'group', name: row.name }, 'Zurück zur Gruppenansicht')}
+          <button type="button" class="end" onClick={() => print()}>Drucken oder als PDF speichern</button>
         </div>
       </>
     )
@@ -174,9 +177,9 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
           {indicators(row.progress, GAMES).map((i) => <li key={i.id}><Indicator {...i} /></li>)}
         </ul>
         <div class="actions">
-          {back({ kind: 'raster', name: row.name }, 'Kompetenzraster')}
-          {back({ kind: 'report', name: row.name }, 'Bericht')}
           {back({ kind: 'overview' }, 'Zurück zur Übersicht')}
+          {back({ kind: 'raster', name: row.name }, 'Kompetenzraster', true)}
+          {back({ kind: 'report', name: row.name }, 'Bericht')}
         </div>
         {!row.demo && (
           <>
@@ -201,7 +204,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
         <p class="role">Die Lehrkräfte-Ansicht ist die zweite Rolle der App: Hier begleitet die Lehrkraft ihre Klasse, sieht den Stand jeder Gruppe und gibt Bildbeiträge frei.</p>
         <p class="hint">Ausschnitt für die Vorführung, ohne Anmeldung und ohne PIN. Die App erfasst nur Gruppen, keine einzelnen Kinder.</p>
         <h3>Übersicht</h3>
-        <ul aria-label="Gruppen" class="checklist">
+        <ul aria-label="Gruppen" class="checklist two">
           {rows.map((r) => {
             const p = r.progress && initialProgress(GAMES, r.progress)
             const station = p && (GAMES.find((g) => p.status[g.id] !== 'done')?.title.standard ?? 'alle geschafft')
@@ -236,9 +239,9 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
           </div>
         </details>
         <div class="actions">
-          {back({ kind: 'codes' }, 'Startcodes drucken')}
           {backToApp}
           {backToWelcome}
+          {back({ kind: 'codes' }, 'Startcodes drucken', true)}
         </div>
       </>
     )
@@ -305,8 +308,8 @@ function Codes({ names, onError, back }: { names: string[]; onError: (e: string)
         </ul>
       )}
       <div class="actions">
-        <button type="button" onClick={() => print()}>Drucken</button>
         {back}
+        <button type="button" class="end" onClick={() => print()}>Drucken</button>
       </div>
     </>
   )
