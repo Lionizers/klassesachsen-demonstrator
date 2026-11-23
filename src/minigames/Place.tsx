@@ -199,7 +199,6 @@ function Station({ game, roles, hintsShown, attempts, apply, onDone, onBack, onS
           {/* aria-disabled instead of disabled: a disabled button would drop the keyboard focus to body. */}
           <button
             type="button"
-            class="help"
             aria-disabled={allHintsShown}
             onClick={() => {
               if (!allHintsShown) apply({ type: 'hint', id: game.id, index: hintsShown, at: Date.now() })
@@ -296,7 +295,10 @@ function EstimateView({ game, attempts, attempt }: GameViewProps<Estimate>) {
     <form
       onSubmit={(e) => {
         e.preventDefault()
-        if (empty) return
+        if (empty) {
+          setFeedback('Gebt zuerst eure Schätzung als Zahl ein.')
+          return
+        }
         const answer = Number(value)
         const correct = isEstimateCorrect(game, answer)
         setFeedback(correct ? '' : `Versuch ${attempts + 1}: Eure Schätzung ist zu ${answer > game.target ? 'hoch' : 'niedrig'}. Versucht es noch einmal!`)
@@ -306,8 +308,8 @@ function EstimateView({ game, attempts, attempt }: GameViewProps<Estimate>) {
       <label for="estimate">Eure Schätzung ({game.unit})</label>
       <div class="field-row">
         <input id="estimate" type="number" inputMode="numeric" value={value} onInput={(e) => setValue(e.currentTarget.value)} />
-        {/* aria-disabled like the other stations: the button stays focusable and keeps its full colour. */}
-        <button type="submit" class="primary" aria-disabled={empty}>Prüfen</button>
+        {/* Always active: an empty field gets a hint instead of a dead button. */}
+        <button type="submit" class="primary">Prüfen</button>
       </div>
       <p role="status">{feedback}</p>
     </form>

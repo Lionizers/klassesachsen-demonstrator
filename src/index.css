@@ -84,7 +84,7 @@ form { background: var(--card); border: var(--edge) solid var(--line); border-ra
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
 .success { font-weight: 700; font-size: 1.3rem; color: var(--success); }
 .choices { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.6rem; }
-.choices button { width: 100%; min-height: 56px; font-size: 1.1rem; }
+.choices button { width: 100%; min-height: var(--main-height); font-size: 1.1rem; }
 .scanner { display: block; width: min(100%, 24rem); margin: 0.5rem 0; background: #000; }
 
 /* A text with its read-aloud symbol beside it. */
@@ -150,8 +150,7 @@ span.tile-main { padding: 0.25rem; }
 .items { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 0.6rem; }
 .items li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.5rem 0.75rem; }
 .items li.open .item { opacity: 0.45; }
-.pieces { list-style: none; padding: 0; counter-reset: piece; }
-.pieces { margin: 0 0 0.5rem; }
+.pieces { list-style: none; padding: 0; margin: 0 0 0.5rem; counter-reset: piece; }
 .pieces li { counter-increment: piece; display: flex; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 0.75rem; padding: 0.2rem 0.5rem; margin: 0.3rem 0; }
 .pieces li::before { content: counter(piece) '.'; font-weight: 700; }
 .pieces li span { flex: 1; }
@@ -170,7 +169,7 @@ span.tile-main { padding: 0.25rem; }
 
 /* Technical details for the evaluators, below the view. */
 .tech { border-top: var(--edge) solid var(--line); margin-top: 1rem; padding-top: 0.5rem; font-size: 0.9rem; }
-.tech summary { cursor: pointer; min-height: 44px; padding: 0.6rem 0; box-sizing: border-box; font-weight: 600; }
+.tech summary, .picker summary { cursor: pointer; min-height: 44px; padding: 0.6rem 0; box-sizing: border-box; font-weight: 600; }
 .tech ul { margin: 0; padding-left: 1.25rem; }
 .tech p { margin: 0.25rem 0; }
 
@@ -194,13 +193,11 @@ main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
 .demo { font-weight: 600; color: #6b3a00; }
 /* The class picker: the twelve names as compact tiles, pressed ones green with a tick. */
 .picker { margin: 1.25rem 0; }
-.picker summary { min-height: 44px; padding: 0.6rem 0; box-sizing: border-box; font-weight: 600; cursor: pointer; }
 .class-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin: 0.25rem 0 0.75rem; }
 .class-tiles button { min-height: 48px; padding: 0.25rem 0.5rem; }
 .class-tiles button[aria-pressed='true'] { background: var(--leaf); border-color: var(--success); color: var(--ink); }
 .class-tiles button[aria-pressed='true']::before { content: '✓ ' / ''; }
 @media (max-width: 40rem) { .class-tiles { grid-template-columns: 1fr 1fr; } }
-.checklist .pill { align-self: flex-start; }
 .raster { border-collapse: collapse; font-size: 0.85rem; margin: 0.5rem 0; width: 100%; table-layout: fixed; background: var(--card); }
 .raster caption { text-align: left; font-weight: 600; margin-bottom: 0.25rem; }
 .raster th, .raster td { border: 1px solid var(--muted); padding: 0.3rem; vertical-align: top; text-align: left; overflow-wrap: anywhere; hyphens: auto; }

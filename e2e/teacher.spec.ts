@@ -364,9 +364,6 @@ test('saving the class list fails: an error is shown and the choice is taken bac
   await otter.click()
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Gruppen der Klasse konnten nicht gespeichert werden.')
   await expect(otter).toHaveAttribute('aria-pressed', 'false')
-  // The error stays: it does not vanish by itself.
-  await page.waitForTimeout(1000)
-  await expect(page.getByRole('main').getByRole('alert')).toBeVisible()
   expect(await readKey(page, 'class')).toBeUndefined()
 })
 

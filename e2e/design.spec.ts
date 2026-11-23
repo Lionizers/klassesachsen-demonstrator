@@ -348,6 +348,8 @@ test.describe('#27 station and teacher view on an iPad', () => {
     await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
     await expect(page.getByText('Gruppen der Klasse (1 von 12 gewählt)')).toBeVisible()
     await expect(picker).toBeHidden()
+    // Printing the codes stays reachable with the picker closed.
+    await expect(page.getByRole('button', { name: 'Startcodes drucken' })).toBeVisible()
   })
 
   test('the group view shows its indicators as cards in one row with the actions together', async ({ page }) => {

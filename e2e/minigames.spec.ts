@@ -57,6 +57,16 @@ test('AE2/AE3: an estimate just outside is retried, exactly on the boundary is a
   await expect(page.getByText(`Du erhältst: ${estimate.reward.standard}`)).toBeVisible()
 })
 
+test('an empty estimate is not an attempt: "Prüfen" says what is missing', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, estimate.title.standard).click()
+  await expect(heading(page, estimate.title.standard)).toBeFocused()
+  await page.getByRole('button', { name: 'Prüfen' }).click()
+  await expect(page.getByRole('main').getByRole('status')).toHaveText('Gebt zuerst eure Schätzung als Zahl ein.')
+  const stored = (await readKey(page, MINIGAMES_KEY)) as Progress
+  expect(stored.events.filter((e) => e.code === 'E3' && e.minigameId === estimate.id)).toEqual([])
+})
+
 test('AE4: every role votes on the device and the result is a consequence, not a verdict', async ({ page }) => {
   await enterPlace(page)
   await station(page, dilemma.title.standard).click()

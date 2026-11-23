@@ -234,9 +234,9 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
               <button key={name} type="button" aria-pressed={chosen.includes(name)} onClick={() => toggleClass(name)}>{name}</button>
             ))}
           </div>
-          {back({ kind: 'codes' }, 'Startcodes drucken')}
         </details>
         <div class="actions">
+          {back({ kind: 'codes' }, 'Startcodes drucken')}
           {backToApp}
           {backToWelcome}
         </div>
