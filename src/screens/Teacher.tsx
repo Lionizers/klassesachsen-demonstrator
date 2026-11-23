@@ -28,7 +28,8 @@ const itemName = (id: string) => GAMES.find((g) => g.id === id)?.reward.standard
 
 type Row = { name: string; demo: boolean; progress?: Progress }
 type View = { kind: 'overview' | 'codes' } | { kind: 'group' | 'raster' | 'report'; name: string }
-type Data = { cls?: ClassList; progress?: Progress; contributions: Contribution[] }
+/** `pickerOpen` is fixed at load: the picker must not fold away under the teacher's first choice. */
+type Data = { cls?: ClassList; progress?: Progress; contributions: Contribution[]; pickerOpen: boolean }
 
 export function Teacher({ go, group, setGroup }: ScreenProps) {
   const [view, setView] = useState<View>({ kind: 'overview' })
@@ -39,7 +40,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
   useEffect(() => {
     Promise.all([load<ClassList>(CLASS_KEY), load<Progress>(MINIGAMES_KEY), load<Contribution[]>(CONTRIBUTIONS_KEY)]).then(
       ([cls, progress, contributions]) => {
-        setData({ cls, progress, contributions: contributions ?? [] })
+        setData({ cls, progress, contributions: contributions ?? [], pickerOpen: !cls?.names.length })
         // The loaded view renders a new heading; the focus set on arrival went to the placeholder.
         focusHeading()
       },
@@ -169,12 +170,13 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
         {demoSolved.length > 0 && (
           <p class="demo">Per Demo-Hilfe als gelöst markiert, nicht gespielt: {demoSolved.map((g) => g.title.standard).join(', ')}</p>
         )}
-        <ul aria-label="Indikatoren" class="indicators">
+        <ul aria-label="Indikatoren" class="checklist">
           {indicators(row.progress, GAMES).map((i) => <li key={i.id}><Indicator {...i} /></li>)}
         </ul>
         <div class="actions">
           {back({ kind: 'raster', name: row.name }, 'Kompetenzraster')}
           {back({ kind: 'report', name: row.name }, 'Bericht')}
+          {back({ kind: 'overview' }, 'Zurück zur Übersicht')}
         </div>
         {!row.demo && (
           <>
@@ -189,7 +191,6 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
             <button type="button" onClick={() => deleteGroup(row.name)}>Daten der Gruppe löschen</button>
           </>
         )}
-        <p>{back({ kind: 'overview' }, 'Zurück zur Übersicht')}</p>
       </>
     )
   } else {
@@ -198,38 +199,43 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
       <>
         <h2 tabIndex={-1}>Lehrkräfte-Ansicht</h2>
         <p class="role">Die Lehrkräfte-Ansicht ist die zweite Rolle der App: Hier begleitet die Lehrkraft ihre Klasse, sieht den Stand jeder Gruppe und gibt Bildbeiträge frei.</p>
-        <p>Ausschnitt für die Vorführung, ohne Anmeldung und ohne PIN. Die App erfasst nur Gruppen, keine einzelnen Kinder.</p>
-        <fieldset>
-          <legend>Gruppen der Klasse</legend>
-          {SUGGESTED_NAMES.map((name) => (
-            <label key={name} class="check">
-              <input type="checkbox" checked={chosen.includes(name)} onChange={() => toggleClass(name)} /> {name}
-            </label>
-          ))}
-        </fieldset>
-        {back({ kind: 'codes' }, 'Startcodes drucken')}
+        <p class="hint">Ausschnitt für die Vorführung, ohne Anmeldung und ohne PIN. Die App erfasst nur Gruppen, keine einzelnen Kinder.</p>
         <h3>Übersicht</h3>
-        <ul aria-label="Gruppen" class="groups">
+        <ul aria-label="Gruppen" class="checklist">
           {rows.map((r) => {
             const p = r.progress && initialProgress(GAMES, r.progress)
             const station = p && (GAMES.find((g) => p.status[g.id] !== 'done')?.title.standard ?? 'alle geschafft')
             return (
               <li key={r.name}>
                 <strong>{r.name}</strong>
-                {r.demo && <> · <span class="demo">{DEMO}</span></>}
+                {r.demo && <span class="demo">{DEMO}</span>}
                 {p ? (
                   <>
-                    <br />Station: {station} · Status: {STATUS[placeState(p)]}
-                    {demoSolvedIds(p).size > 0 && ' · teils per Demo-Hilfe gelöst'}{' '}
+                    <p>
+                      Station: {station} · Status: {STATUS[placeState(p)]}
+                      {demoSolvedIds(p).size > 0 && ' · teils per Demo-Hilfe gelöst'}
+                    </p>
                     {back({ kind: 'group', name: r.name }, `${r.name} ansehen`)}
                   </>
                 ) : (
-                  <><br />keine Daten auf diesem Gerät</>
+                  <>
+                    <p>Noch nicht gestartet – Startcode verteilen</p>
+                    {back({ kind: 'codes' }, `Startcode für ${r.name}`)}
+                  </>
                 )}
               </li>
             )
           })}
         </ul>
+        <details class="picker" open={data.pickerOpen}>
+          <summary>Gruppen der Klasse ({chosen.length} von {SUGGESTED_NAMES.length} gewählt)</summary>
+          <div role="group" aria-label="Gruppen der Klasse" class="class-tiles">
+            {SUGGESTED_NAMES.map((name) => (
+              <button key={name} type="button" aria-pressed={chosen.includes(name)} onClick={() => toggleClass(name)}>{name}</button>
+            ))}
+          </div>
+          {back({ kind: 'codes' }, 'Startcodes drucken')}
+        </details>
         <div class="actions">
           {backToApp}
           {backToWelcome}
@@ -252,7 +258,7 @@ function Indicator({ name, levelName, description, rule }: ReturnType<typeof ind
   return (
     <>
       <h3>{name}</h3>
-      <p>Niveaustufe: {levelName}</p>
+      <p class="pill">Niveaustufe: {levelName}</p>
       <p>{description}</p>
       <p class="hint">{rule}</p>
     </>

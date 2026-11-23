@@ -32,7 +32,11 @@ async function startGroup(page: Page, name = 'Otter') {
 }
 
 const pickClass = async (page: Page, ...names: string[]) => {
-  for (const name of names) await page.getByRole('group', { name: 'Gruppen der Klasse' }).getByRole('checkbox', { name, exact: true }).check()
+  for (const name of names) {
+    const tile = page.getByRole('group', { name: 'Gruppen der Klasse' }).getByRole('button', { name, exact: true })
+    await tile.click()
+    await expect(tile).toHaveAttribute('aria-pressed', 'true')
+  }
 }
 const row = (page: Page, name: string) => page.getByRole('list', { name: 'Gruppen' }).getByRole('listitem').filter({ has: page.getByText(name, { exact: true }) })
 
@@ -104,8 +108,8 @@ test('AE2/AE10: the overview lists every group alphabetically with station and s
   await expect(names).toHaveText(['Beispiel Ahorn', 'Beispiel Birke', 'Beispiel Eiche', 'Igel', 'Otter'])
   await expect(row(page, 'Otter')).toContainText(`Station: ${burgFunkelfels[0].title.standard}`)
   await expect(row(page, 'Otter')).toContainText('Status: unterwegs')
-  await expect(row(page, 'Igel')).toContainText('keine Daten auf diesem Gerät')
-  await expect(row(page, 'Igel').getByRole('button')).toHaveCount(0)
+  await expect(row(page, 'Igel')).toContainText('Noch nicht gestartet – Startcode verteilen')
+  await expect(row(page, 'Igel').getByRole('button')).toHaveText(['Startcode für Igel'])
   await expect(row(page, 'Beispiel Ahorn')).toContainText(DEMO)
   await expect(row(page, 'Beispiel Ahorn')).toContainText('Status: Quest abgeschlossen')
   for (const level of LEVELS) await expect(page.locator('main')).not.toContainText(level)
@@ -214,7 +218,7 @@ test('AE7: deleting removes every group key at once, only class and settings sta
   await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
   await expect(page.getByRole('status').filter({ hasText: 'Die Daten der Gruppe Otter sind gelöscht.' })).toBeVisible()
   expect(Object.keys(await dumpStore(page)).filter((k) => !['class', 'settings'].includes(k))).toEqual([])
-  await expect(row(page, 'Otter')).toContainText('keine Daten auf diesem Gerät')
+  await expect(row(page, 'Otter')).toContainText('Noch nicht gestartet – Startcode verteilen')
   await checkView(page)
   await page.getByRole('button', { name: 'Zurück zur App' }).click()
   await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeFocused()
@@ -356,10 +360,13 @@ test('saving the class list fails: an error is shown and the choice is taken bac
   await openStart(page)
   await openTeacher(page)
   await failPut(page, 'class')
-  const otter = page.getByRole('group', { name: 'Gruppen der Klasse' }).getByRole('checkbox', { name: 'Otter', exact: true })
+  const otter = page.getByRole('group', { name: 'Gruppen der Klasse' }).getByRole('button', { name: 'Otter', exact: true })
   await otter.click()
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Gruppen der Klasse konnten nicht gespeichert werden.')
-  await expect(otter).not.toBeChecked()
+  await expect(otter).toHaveAttribute('aria-pressed', 'false')
+  // The error stays: it does not vanish by itself.
+  await page.waitForTimeout(1000)
+  await expect(page.getByRole('main').getByRole('alert')).toBeVisible()
   expect(await readKey(page, 'class')).toBeUndefined()
 })
 

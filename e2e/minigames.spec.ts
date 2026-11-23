@@ -154,7 +154,7 @@ test('hints are announced, capped at the number of hints, and keep the focus', a
   await page.getByRole('button', { name: hintButton }).focus()
   for (let i = 0; i <= puzzle.hints.length; i++) await page.keyboard.press('Enter')
   await expect(page.getByText(puzzle.hints.at(-1)!.standard)).toBeVisible()
-  await expect(page.getByText(puzzle.hints[0].standard).locator('..')).toHaveAttribute('aria-live', 'polite')
+  await expect(page.locator('[aria-live="polite"]').filter({ hasText: puzzle.hints[0].standard })).toHaveCount(1)
   await expect(page.locator('body')).not.toBeFocused()
   await expect(page.getByRole('button', { name: hintButton })).toBeFocused()
   await expect.poll(async () => {

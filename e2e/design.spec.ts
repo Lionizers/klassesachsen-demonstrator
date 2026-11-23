@@ -224,3 +224,142 @@ test.describe('on a phone', () => {
     await fits('raster')
   })
 })
+
+/** Visible names of the filled buttons in the view: a filled button has white text. */
+const filledButtons = (page: Page) =>
+  page.locator('main button:visible').evaluateAll((els) => els.filter((b) => getComputedStyle(b).color === 'rgb(255, 255, 255)').map((b) => b.textContent!.trim()))
+
+/** Each locator lies within the first screen of the page, so it is visible without scrolling. */
+async function inView(...locators: ReturnType<Page['locator']>[]) {
+  for (const locator of locators) {
+    const bottom = await locator.evaluate((el) => el.getBoundingClientRect().bottom + scrollY)
+    expect(bottom, (await locator.textContent()) ?? '').toBeLessThanOrEqual(IPAD.height)
+  }
+}
+
+/** Every visible button in the view is a touch target of at least 44 × 44, and the buttons of one row are equally high. */
+async function touchTargets(page: Page) {
+  for (const box of await page.locator('main button:visible').evaluateAll((els) => els.map((b) => b.getBoundingClientRect()))) {
+    expect(box.width).toBeGreaterThanOrEqual(44)
+    expect(box.height).toBeGreaterThanOrEqual(44)
+  }
+  for (const row of await page.locator('main .actions').all()) {
+    const heights = await row.locator(':scope > button').evaluateAll((els) => els.map((b) => b.getBoundingClientRect().height))
+    expect(new Set(heights).size, 'buttons of one row').toBeLessThanOrEqual(1)
+  }
+}
+
+test.describe('#27 station and teacher view on an iPad', () => {
+  test.use({ viewport: IPAD })
+
+  for (const mode of ['standard', 'easy'] as const) {
+    test(`AE1-AE7/AE12: every station fits the screen with one filled button (${mode}${mode === 'easy' ? ', high contrast' : ''})`, async ({ page }) => {
+      await startGroup(page)
+      if (mode === 'easy') {
+        await page.getByText('Einstellungen', { exact: true }).click()
+        await page.getByLabel('Einfache Sprache').check()
+        await page.getByLabel('Hoher Kontrast').check()
+        await page.getByText('Einstellungen', { exact: true }).click()
+      }
+      await reachPlaceFromGroup(page)
+      for (const [i, game] of burgFunkelfels.entries()) {
+        const title = game.title[mode]
+        await page.getByRole('button', { name: title }).click()
+        await expect(heading(page, title)).toBeFocused()
+        const station = page.locator('main section')
+        await expect(station.getByText(`Station ${i + 1} von 3`, { exact: true })).toBeVisible()
+        // The reward sits beside the title, so the task is read first.
+        const reward = station.getByText(`Belohnung: ${game.reward[mode]}`)
+        const titleBox = (await heading(page, title).boundingBox())!
+        expect((await reward.boundingBox())!.y).toBeLessThan(titleBox.y + titleBox.height)
+        const help = page.getByRole('button', { name: 'Fuchs Fidelius um Hilfe bitten' })
+        const check = page.getByRole('button', { name: 'Prüfen' })
+        await inView(heading(page, title), station.getByText(game.prompt[mode]), station.locator('.play'), help, ...(game.kind === 'dilemma' ? [] : [check]))
+        if (game.kind !== 'dilemma') expect(await filledButtons(page)).toEqual(['Prüfen'])
+        else expect(await filledButtons(page)).toEqual(game.options.map((o) => o.label[mode]))
+        if (game.kind === 'estimate') {
+          // Measured in one go: the view still slides in, so two separate reads would see it move.
+          const [field, button] = await station.locator('.field-row > *').evaluateAll((els) => els.map((el) => el.getBoundingClientRect()))
+          expect(field.y).toBe(button.y)
+          expect(field.height).toBe(button.height)
+        }
+        // One read-aloud symbol per text block: 48 × 48, named after its text.
+        await help.click()
+        const readers = station.locator('button.read-aloud')
+        const names = await readers.evaluateAll((els) => els.map((b) => b.getAttribute('aria-label')))
+        expect(names.length).toBeGreaterThan(0)
+        expect(new Set(names).size).toBe(names.length)
+        for (const reader of await readers.all()) {
+          await expect(reader).toHaveAccessibleName(/ vorlesen$/)
+          const box = (await reader.boundingBox())!
+          expect([box.width, box.height]).toEqual([48, 48])
+        }
+        await touchTargets(page)
+        await axeClean(page)
+        // The neutral way back leaves the station open; "Später nachholen" is a text button.
+        await expect(page.getByRole('button', { name: 'Später nachholen' })).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)')
+        await page.getByRole('button', { name: `Zurück zu ${PLACE_NAME}` }).click()
+        await expect(heading(page, PLACE_NAME)).toBeFocused()
+        await expect(page.getByRole('list', { name: 'Stationen' }).getByRole('listitem').nth(i)).toContainText(/offen$/)
+      }
+    })
+  }
+
+  test('AE8-AE11: the overview is on top, the class picker is a compact tile grid, an empty group points to its start code', async ({ page }) => {
+    await openStart(page)
+    await page.getByRole('button', { name: 'Lehrkräfte-Ansicht' }).click()
+    await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
+    const picker = page.getByRole('group', { name: 'Gruppen der Klasse' })
+    const cards = page.getByRole('list', { name: 'Gruppen' }).getByRole('listitem')
+    // Open while no group is chosen; below the overview.
+    await expect(picker).toBeVisible()
+    expect((await cards.first().boundingBox())!.y).toBeLessThan((await picker.boundingBox())!.y)
+    const tiles = picker.getByRole('button')
+    await expect(tiles).toHaveCount(12)
+    const boxes = await tiles.evaluateAll((els) => els.map((b) => b.getBoundingClientRect()))
+    expect(new Set(boxes.map((b) => b.y)).size).toBeLessThanOrEqual(3)
+    expect((await picker.boundingBox())!.height).toBeLessThanOrEqual(220)
+    for (const tile of await tiles.all()) await expect(tile).toHaveAttribute('aria-pressed', 'false')
+    // The cards stand in a grid; the first row is on screen and its buttons sit on one line at the card foot.
+    const firstRow = await cards.evaluateAll((els) => {
+      const top = els[0].getBoundingClientRect().y
+      return els.filter((el) => el.getBoundingClientRect().y === top).length
+    })
+    expect(firstRow).toBeGreaterThanOrEqual(2)
+    const views = cards.getByRole('button', { name: / ansehen$/ })
+    await inView(views.first())
+    const bottoms = await views.evaluateAll((els, n) => els.slice(0, n).map((b) => b.getBoundingClientRect().bottom), firstRow)
+    expect(new Set(bottoms).size).toBe(1)
+    expect(await filledButtons(page)).toHaveLength(0)
+    await touchTargets(page)
+    await axeClean(page)
+
+    await tiles.filter({ hasText: 'Igel' }).click()
+    await expect(tiles.filter({ hasText: 'Igel' })).toHaveAttribute('aria-pressed', 'true')
+    const igel = cards.filter({ has: page.getByText('Igel', { exact: true }) })
+    await expect(igel).toContainText('Noch nicht gestartet – Startcode verteilen')
+    await igel.getByRole('button', { name: 'Startcode für Igel' }).click()
+    await expect(heading(page, 'Startcodes')).toBeFocused()
+    await expect(page.getByText('Startcode: IGEL')).toBeVisible()
+
+    // With a chosen group the picker starts closed and names the count.
+    await page.reload()
+    await page.getByRole('button', { name: 'Lehrkräfte-Ansicht' }).click()
+    await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
+    await expect(page.getByText('Gruppen der Klasse (1 von 12 gewählt)')).toBeVisible()
+    await expect(picker).toBeHidden()
+  })
+
+  test('the group view shows its indicators as cards in one row with the actions together', async ({ page }) => {
+    await openStart(page)
+    await page.getByRole('button', { name: 'Lehrkräfte-Ansicht' }).click()
+    await page.getByRole('button', { name: 'Beispiel Ahorn ansehen' }).click()
+    await expect(heading(page, 'Gruppenansicht Beispiel Ahorn')).toBeFocused()
+    const ys = await page.getByRole('list', { name: 'Indikatoren' }).getByRole('listitem').evaluateAll((els) => els.map((el) => el.getBoundingClientRect().y))
+    expect(new Set(ys).size).toBe(1)
+    const actions = page.locator('main .actions').filter({ has: page.getByRole('button', { name: 'Kompetenzraster' }) })
+    await expect(actions.getByRole('button')).toHaveText(['Kompetenzraster', 'Bericht', 'Zurück zur Übersicht'])
+    await touchTargets(page)
+    await axeClean(page)
+  })
+})
