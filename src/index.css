@@ -13,15 +13,14 @@
   --leaf: #d9efd5;
   --success: #1f5a22;
   --tempo: 1;
-  /* The main action of a child view. */
+  /* The main action of a child view, and the one field it checks. */
   --main-height: 56px;
-  /* Spacing scale: within a group s2, between groups s4 or s5, before a section s6. */
+  /* Spacing scale: within a group s2, between groups s4 or s5. */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
   --s4: 16px;
   --s5: 24px;
-  --s6: 32px;
   font-family: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   color: var(--ink);
@@ -91,8 +90,10 @@ form { background: var(--card); border: var(--edge) solid var(--line); border-ra
 .actions { display: flex; flex-wrap: wrap; gap: var(--s3); margin: var(--s5) 0; }
 /* Ways back stay left; from the first `end` button on, the actions sit on the right. */
 .actions > .end { margin-left: auto; }
-/* A card's own action closes it at the bottom right. */
-form > button[type='submit'], .play > button.primary { display: block; margin: var(--s4) 0 0 auto; }
+/* A card's own action closes it at the bottom right; in a flex card align-self does it, elsewhere the auto margin. */
+.play > button.primary, .play form > button[type='submit'], .checklist li > button { display: block; align-self: flex-end; margin: var(--s4) 0 0 auto; }
+/* Inside a card the card's padding is the margin. */
+.items .actions { margin: 0; }
 .success { font-weight: 700; font-size: 1.3rem; color: var(--success); }
 .choices { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.6rem; }
 .choices button { width: 100%; min-height: var(--main-height); font-size: 1.1rem; }
@@ -105,9 +106,9 @@ form > button[type='submit'], .play > button.primary { display: block; margin: v
 
 /* A station: title row, then task with Fidelius beside the game, like the map beside its places. */
 .station-title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s4); margin-bottom: var(--s4); }
-.station-title h2 { margin: 0.5rem 0; }
+.station-title h2 { margin: var(--s2) 0; }
 .station-title p { margin: 0; }
-.station-title .reward { display: inline-flex; align-items: center; gap: 0.35rem; }
+.station-title .reward { display: inline-flex; align-items: center; gap: var(--s1); }
 .station-title .station-count { margin-left: auto; font-weight: 600; color: var(--muted); }
 .station { display: grid; grid-template-columns: 2fr 3fr; gap: var(--s5); align-items: start; }
 .station > div:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s4); }
@@ -163,7 +164,7 @@ span.tile-main { padding: 0.25rem; }
 .items li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.5rem 0.75rem; }
 .items li.open .item { opacity: 0.45; }
 .pieces { list-style: none; padding: 0; margin: 0; counter-reset: piece; display: grid; gap: var(--s2); }
-.pieces li { counter-increment: piece; display: flex; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 0.75rem; padding: var(--s1) var(--s2) var(--s1) var(--s3); margin: 0; }
+.pieces li { counter-increment: piece; display: flex; align-items: center; gap: var(--s2); background: var(--card); border: var(--edge) solid var(--line); border-radius: 0.75rem; padding: var(--s1) var(--s2) var(--s1) var(--s3); margin: 0; }
 .pieces li::before { content: counter(piece) '.'; font-weight: 700; }
 .pieces li span { flex: 1; }
 .pieces button { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
@@ -228,7 +229,6 @@ main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
 .checklist { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--s4); }
 .checklist.two { grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
 .checklist li { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: var(--s4) var(--s5); display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); }
-.checklist li > button { align-self: flex-end; margin-top: var(--s2); }
 .checklist li.seen { border-color: var(--success); }
 .checklist li.seen .pill { background: var(--leaf); }
 .checklist p { margin: 0; flex: 1; }

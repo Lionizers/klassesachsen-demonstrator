@@ -510,6 +510,19 @@ test.describe('#29 actions bottom right, airy spacing', () => {
   })
 })
 
+test('#29 scope: outside the game card a form button stays beside its field on the left', async ({ page }) => {
+  await page.setViewportSize(IPAD)
+  await openStart(page)
+  for (const name of ['Mit Startcode starten', 'Gruppe anlegen']) {
+    const m = await page.getByRole('button', { name }).evaluate((b) => {
+      const form = b.closest('form')!
+      const pad = parseFloat(getComputedStyle(form).paddingLeft) + parseFloat(getComputedStyle(form).borderLeftWidth)
+      return b.getBoundingClientRect().left - (form.getBoundingClientRect().left + pad)
+    })
+    expect(Math.abs(m), name).toBeLessThanOrEqual(1)
+  }
+})
+
 test.describe('#29 on a phone', () => {
   test.use({ viewport: PHONE })
 

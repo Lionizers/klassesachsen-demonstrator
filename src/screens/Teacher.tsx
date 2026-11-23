@@ -98,7 +98,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
   ].sort((a, b) => a.name.localeCompare(b.name, 'de'))
   const row = 'name' in view ? rows.find((r) => r.name === view.name) : undefined
   // `end` marks the first action of a row that belongs on the right, after the ways back.
-  const back = (target: View, label: string, end?: boolean) => (
+  const nav = (target: View, label: string, end?: boolean) => (
     <button type="button" class={end ? 'end' : undefined} onClick={() => show(target)}>{label}</button>
   )
 
@@ -115,7 +115,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
       </>
     )
   } else if (view.kind === 'codes') {
-    content = <Codes names={data.cls?.names ?? []} onError={setError} back={back({ kind: 'overview' }, 'Zurück zur Übersicht')} />
+    content = <Codes names={data.cls?.names ?? []} onError={setError} back={nav({ kind: 'overview' }, 'Zurück zur Übersicht')} />
   } else if (row?.progress && view.kind === 'raster') {
     const reached = indicators(row.progress, GAMES)
     content = (
@@ -144,7 +144,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
             ))}
           </tbody>
         </table>
-        {back({ kind: 'group', name: row.name }, 'Zurück zur Gruppenansicht')}
+        {nav({ kind: 'group', name: row.name }, 'Zurück zur Gruppenansicht')}
       </>
     )
   } else if (row?.progress && view.kind === 'report') {
@@ -158,7 +158,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
         {indicators(row.progress, GAMES).map((i) => <div key={i.id}><Indicator {...i} /></div>)}
         <p>Die Zuordnung zu den Niveaustufen ist eine Beispielregel. Der Bericht beschreibt die Gruppe als Ganzes und ist eine Grundlage für das Gespräch mit der Klasse.</p>
         <div class="actions">
-          {back({ kind: 'group', name: row.name }, 'Zurück zur Gruppenansicht')}
+          {nav({ kind: 'group', name: row.name }, 'Zurück zur Gruppenansicht')}
           <button type="button" class="end" onClick={() => print()}>Drucken oder als PDF speichern</button>
         </div>
       </>
@@ -177,9 +177,9 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
           {indicators(row.progress, GAMES).map((i) => <li key={i.id}><Indicator {...i} /></li>)}
         </ul>
         <div class="actions">
-          {back({ kind: 'overview' }, 'Zurück zur Übersicht')}
-          {back({ kind: 'raster', name: row.name }, 'Kompetenzraster', true)}
-          {back({ kind: 'report', name: row.name }, 'Bericht')}
+          {nav({ kind: 'overview' }, 'Zurück zur Übersicht')}
+          {nav({ kind: 'raster', name: row.name }, 'Kompetenzraster', true)}
+          {nav({ kind: 'report', name: row.name }, 'Bericht')}
         </div>
         {!row.demo && (
           <>
@@ -218,12 +218,12 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
                       Station: {station} · Status: {STATUS[placeState(p)]}
                       {demoSolvedIds(p).size > 0 && ' · teils per Demo-Hilfe gelöst'}
                     </p>
-                    {back({ kind: 'group', name: r.name }, `${r.name} ansehen`)}
+                    {nav({ kind: 'group', name: r.name }, `${r.name} ansehen`)}
                   </>
                 ) : (
                   <>
                     <p>Noch nicht gestartet – Startcode verteilen</p>
-                    {back({ kind: 'codes' }, `Startcode für ${r.name}`)}
+                    {nav({ kind: 'codes' }, `Startcode für ${r.name}`)}
                   </>
                 )}
               </li>
@@ -241,7 +241,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
         <div class="actions">
           {backToApp}
           {backToWelcome}
-          {back({ kind: 'codes' }, 'Startcodes drucken', true)}
+          {nav({ kind: 'codes' }, 'Startcodes drucken', true)}
         </div>
       </>
     )
