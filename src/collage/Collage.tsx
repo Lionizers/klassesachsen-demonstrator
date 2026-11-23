@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useContext, useEffect, useRef, useState } from 'preact/hooks'
 import { PLACE_NAME } from '../minigames/burg-funkelfels'
 import type { Minigame } from '../minigames/model'
+import { SettingsContext, text } from '../settings'
 import { load, save } from '../store/db'
 import { drawCollage } from './draw'
 import { ARRANGEMENTS, CANVAS, CONTRIBUTIONS_KEY, MOODS, PREVIEW, SIZES, seedOf, type Contribution, type Settings } from './layout'
@@ -31,6 +32,8 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
   const [download, setDownload] = useState<string>()
   const [error, setError] = useState<string>()
   const canvas = useRef<HTMLCanvasElement>(null)
+  const { easy } = useContext(SettingsContext)
+  const name = (item: Minigame) => text(item.reward, easy)
   const chosen = items.filter((item) => selected.includes(item.id))
 
   useEffect(() => {
@@ -53,6 +56,7 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
     setSelected(items.filter((item) => (item.id === id) !== selected.includes(item.id)).map((item) => item.id))
 
   async function exportCollage() {
+    if (busy) return
     setBusy(true)
     try {
       const png = await toBlob(canvas.current!, 'image/png')
@@ -78,11 +82,12 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
   return (
     <section aria-labelledby="collage-title">
       {title}
+      {error && <p role="alert">{error}</p>}
       <fieldset>
         <legend>Items für die Collage</legend>
         {items.map((item) => (
           <label key={item.id} class="check">
-            <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} /> {item.reward.standard}
+            <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} /> {name(item)}
           </label>
         ))}
       </fieldset>
@@ -108,14 +113,14 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
           height={CANVAS}
           class="collage"
           role="img"
-          aria-label={`Collage aus: ${chosen.map((item) => item.reward.standard).join(', ')}`}
+          aria-label={`Collage aus: ${chosen.map(name).join(', ')}`}
         />
       )}
       <div class="actions">
-        <button type="button" disabled={chosen.length === 0 || busy} onClick={exportCollage}>Collage speichern</button>
+        {/* aria-disabled, not disabled: a disabled button drops the keyboard focus to the page. */}
+        <button type="button" disabled={chosen.length === 0} aria-disabled={busy} onClick={exportCollage}>Collage speichern</button>
         {download && <a href={download} download="collage.png">PNG herunterladen</a>}
       </div>
-      {error && <p role="alert">{error}</p>}
       <p role="status">{download && 'Gespeichert. Die Lehrkraft kann den Beitrag freigeben.'}</p>
     </section>
   )

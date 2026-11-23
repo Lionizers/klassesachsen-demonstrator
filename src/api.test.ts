@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { apiResponse } from './api'
+import { describe, expect, it, vi } from 'vitest'
+import { apiResponse, handleApi, isApiRequest } from './api'
 import type { Contribution } from './collage/layout'
 
 const contribution = (id: string, released: boolean, previewType = 'image/webp'): Contribution => ({
@@ -65,5 +65,32 @@ describe('apiResponse', () => {
     expect(text.startsWith('PK\x03\x04')).toBe(true)
     for (const name of [`${RELEASED}.json`, `${RELEASED}.png`, `${RELEASED}.webp`, `${JPEG}.jpg`, 'beitraege.json']) expect(text).toContain(name)
     expect(text).not.toContain(HIDDEN)
+  })
+})
+
+describe('isApiRequest', () => {
+  const at = (href: string, sameOrigin: boolean) => isApiRequest({ url: new URL(href), sameOrigin })
+
+  it('answers only same-origin paths of the interface', () => {
+    expect(at('https://app.example/api/beitraege', true)).toBe(true)
+    expect(at('https://other.example/api/beitraege', false)).toBe(false)
+    expect(at('https://app.example/karte', true)).toBe(false)
+  })
+})
+
+describe('handleApi', () => {
+  it('answers from the loaded contributions', async () => {
+    const response = await handleApi('/api/beitraege', async () => all)
+    expect(response.status).toBe(200)
+  })
+
+  it('a failed load is a 503 from the simulation and is logged', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const failure = new Error('quota')
+    const response = await handleApi('/api/beitraege', () => Promise.reject(failure))
+    expect(response.status).toBe(503)
+    expect(response.headers.get('X-Demonstrator')).toBe('simulation')
+    expect(log).toHaveBeenCalledWith(expect.any(String), failure)
+    log.mockRestore()
   })
 })

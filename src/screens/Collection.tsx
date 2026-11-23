@@ -2,7 +2,7 @@ import { useContext, useEffect, useState } from 'preact/hooks'
 import { load, save } from '../store/db'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
 import type { Minigame } from '../minigames/model'
-import { MINIGAMES_KEY, initialProgress, placeState, type Progress } from '../minigames/progress'
+import { MINIGAMES_KEY, initialProgress, type Progress } from '../minigames/progress'
 import { CHARACTER_KEY, collected, wornOf, type Character } from '../collection/items'
 import { ArtPaths, BODY, CHARACTER_VIEWBOX, ItemImage } from '../collection/ItemArt'
 import { SettingsContext, text } from '../settings'
@@ -13,7 +13,6 @@ export function Collection({ go }: ScreenProps) {
   const { easy } = useContext(SettingsContext)
   const [items, setItems] = useState<Minigame[]>()
   const [worn, setWorn] = useState<string[]>([])
-  const [finished, setFinished] = useState(false)
   const [error, setError] = useState<string>()
 
   useEffect(() => {
@@ -22,7 +21,6 @@ export function Collection({ go }: ScreenProps) {
         const state = initialProgress(GAMES, progress)
         const found = collected(GAMES, state)
         setItems(found)
-        setFinished(placeState(state) === 'done')
         setWorn(wornOf(character, found))
       },
       () => setError('Die Sammlung konnte nicht geladen werden.'),
@@ -95,7 +93,7 @@ export function Collection({ go }: ScreenProps) {
           </ul>
         </>
       )}
-      <Collage items={items} unlocked={finished} />
+      <Collage items={items} unlocked={open.length === 0} />
       {back}
     </section>
   )

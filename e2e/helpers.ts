@@ -9,8 +9,10 @@ export const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'es
 
 export const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
 
-export async function axeClean(page: Page) {
-  const result = await new AxeBuilder({ page }).withTags(WCAG).analyze()
+/** Checks the whole page, or only the part matching `include`. */
+export async function axeClean(page: Page, include?: string) {
+  const builder = new AxeBuilder({ page }).withTags(WCAG)
+  const result = await (include ? builder.include(include) : builder).analyze()
   expect(result.violations).toEqual([])
 }
 

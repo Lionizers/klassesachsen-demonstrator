@@ -1,12 +1,10 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
 import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import { MINIGAMES_KEY, type Progress, type StationStatus } from '../src/minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../src/collage/layout'
 import { FAIL_PUT, failPut } from './fail-put'
-import { heading, readStored, writeStored } from './helpers'
+import { axeClean, heading, readStored, writeStored } from './helpers'
 
-const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const names = burgFunkelfels.map((g) => g.reward.standard)
 const LOCKED = `Die Collage öffnet sich, wenn ihr alle Stationen bei ${PLACE_NAME} geschafft habt.`
 
@@ -16,10 +14,14 @@ const save = (page: Page) => collage(page).getByRole('button', { name: 'Collage 
 const saved = (page: Page) => collage(page).getByRole('status')
 
 /** Group screen, then `status` for the first station and done for the rest, then the collection. */
-async function openCollage(page: Page, first: StationStatus = 'done') {
+async function openCollage(page: Page, first: StationStatus = 'done', easy = false) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(heading(page, 'Gruppe Otter')).toBeFocused()
+  if (easy) {
+    await page.getByText('Einstellungen', { exact: true }).click()
+    await page.getByLabel('Einfache Sprache').check()
+  }
   const progress: Progress = {
     status: Object.fromEntries(burgFunkelfels.map((g, i) => [g.id, i === 0 ? first : 'done'])),
     events: [],
@@ -106,8 +108,26 @@ test('AE2: after the final quest items and sliders change the picture at once', 
   await expect(canvas(page)).toHaveAccessibleName(`Collage aus: ${names.slice(1).join(', ')}`)
   await expect.poll(() => fingerprint(page)).not.toBe(before)
   await expect(collage(page).getByText('Otter')).toHaveCount(0)
-  const result = await new AxeBuilder({ page }).include('section[aria-labelledby="collage-title"]').withTags(WCAG).analyze()
-  expect(result.violations).toEqual([])
+  await axeClean(page, 'section[aria-labelledby="collage-title"]')
+})
+
+test('easy language names the items in the collage like in the collection', async ({ page }) => {
+  await openCollage(page, 'done', true)
+  const easy = burgFunkelfels.map((g) => g.reward.easy)
+  await expect(canvas(page)).toHaveAccessibleName(`Collage aus: ${easy.join(', ')}`)
+  for (const name of easy) await expect(collage(page).getByRole('checkbox', { name, exact: true })).toBeChecked()
+  await expect(collage(page).getByText(names[0])).toHaveCount(0)
+})
+
+test('the save button keeps the keyboard focus while saving and ignores a second press', async ({ page }) => {
+  await openCollage(page)
+  await save(page).focus()
+  await page.keyboard.press('Enter')
+  await expect(save(page)).toHaveAttribute('aria-disabled', 'true')
+  await page.keyboard.press('Enter')
+  await expect(saved(page)).toHaveText('Gespeichert. Die Lehrkraft kann den Beitrag freigeben.')
+  await expect(save(page)).toBeFocused()
+  await expect.poll(() => describeStored(page)).toHaveLength(1)
 })
 
 test('AE3/AE4/AE5: the export is a 2048 px PNG with a 512 px WebP preview and metadata without the group name', async ({ page }) => {
@@ -187,6 +207,8 @@ test('a failed save is reported and the next export works', async ({ page }) => 
   await failPut(page, CONTRIBUTIONS_KEY)
   await save(page).click()
   await expect(collage(page).getByRole('alert')).toHaveText('Der Beitrag konnte nicht gespeichert werden.')
+  // Above the controls, so it is read before what it is about.
+  await expect(collage(page).locator('[role="alert"] ~ fieldset')).toHaveCount(1)
   await expect(collage(page).getByRole('link', { name: 'PNG herunterladen' })).toHaveCount(0)
   await failPut(page, false)
   await exportCollage(page)
