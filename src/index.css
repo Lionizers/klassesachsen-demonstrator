@@ -13,8 +13,14 @@
   --leaf: #d9efd5;
   --success: #1f5a22;
   --tempo: 1;
-  /* The main action of a child view, and the field beside it. */
+  /* The main action of a child view, and the one field it checks. */
   --main-height: 56px;
+  /* Spacing scale: within a group s2, between groups s4 or s5. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
   font-family: ui-rounded, 'SF Pro Rounded', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   color: var(--ink);
@@ -81,33 +87,39 @@ label { font-weight: 600; display: block; margin-top: 1rem; }
 form { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.25rem 1rem 1rem; margin: 1rem 0; }
 .hint { margin: 0.25rem 0; color: var(--muted); }
 .error { color: #a4161a; min-height: 1.5em; margin: 0.25rem 0; }
-.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--s3); margin: var(--s5) 0; }
+/* Ways back stay left; from the first `end` button on, the actions sit on the right. */
+.actions > .end { margin-left: auto; }
+/* A card's own action closes it at the bottom right; in a flex card align-self does it, elsewhere the auto margin. */
+.play > button.primary, .play form > button[type='submit'], .checklist li > button { display: block; align-self: flex-end; margin: var(--s4) 0 0 auto; }
+/* Inside a card the card's padding is the margin. */
+.items .actions { margin: 0; }
 .success { font-weight: 700; font-size: 1.3rem; color: var(--success); }
 .choices { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: 0.6rem; }
 .choices button { width: 100%; min-height: var(--main-height); font-size: 1.1rem; }
 .scanner { display: block; width: min(100%, 24rem); margin: 0.5rem 0; background: #000; }
 
 /* A text with its read-aloud symbol beside it. */
-.said { display: flex; align-items: flex-start; gap: 0.5rem; }
+.said { display: flex; align-items: flex-start; gap: var(--s3); }
 .said p { flex: 1; margin: 0.25rem 0; }
 .read-aloud.icon { width: 48px; height: 48px; padding: 0; justify-content: center; flex: none; }
 
 /* A station: title row, then task with Fidelius beside the game, like the map beside its places. */
-.station-title { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; }
-.station-title h2 { margin: 0.5rem 0; }
+.station-title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1) var(--s4); margin-bottom: var(--s4); }
+.station-title h2 { margin: var(--s2) 0; }
 .station-title p { margin: 0; }
-.station-title .reward { display: inline-flex; align-items: center; gap: 0.35rem; }
+.station-title .reward { display: inline-flex; align-items: center; gap: var(--s1); }
 .station-title .station-count { margin-left: auto; font-weight: 600; color: var(--muted); }
-.station { display: grid; grid-template-columns: 2fr 3fr; gap: 1rem; align-items: start; }
-.station .fidelius { margin: 0.5rem 0 0; }
+.station { display: grid; grid-template-columns: 2fr 3fr; gap: var(--s5); align-items: start; }
+.station > div:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s4); }
+.station .fidelius { margin: 0; }
 .station .fidelius .fox { width: 64px; height: 64px; }
-.station .bubble { margin-bottom: 0.5rem; }
-.play { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.75rem 1rem; }
+.station .bubble { margin-bottom: 0; }
+.play { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: var(--s5); }
 .play form { border: 0; padding: 0; margin: 0; }
 .play label { margin-top: 0; }
 .play [role='status'] { margin: 0.25rem 0 0; min-height: 1.5em; }
-.field-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
-.field-row input { width: 10rem; min-height: var(--main-height); margin: 0; }
+.play input { width: 10rem; min-height: var(--main-height); }
 .options { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); margin: 0.5rem 0 0; }
 .options button { overflow-wrap: anywhere; }
 .play h3 { margin-top: 0; }
@@ -151,8 +163,8 @@ span.tile-main { padding: 0.25rem; }
 .items { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 0.6rem; }
 .items li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.5rem 0.75rem; }
 .items li.open .item { opacity: 0.45; }
-.pieces { list-style: none; padding: 0; margin: 0 0 0.5rem; counter-reset: piece; }
-.pieces li { counter-increment: piece; display: flex; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 0.75rem; padding: 0.2rem 0.5rem; margin: 0.3rem 0; }
+.pieces { list-style: none; padding: 0; margin: 0; counter-reset: piece; display: grid; gap: var(--s2); }
+.pieces li { counter-increment: piece; display: flex; align-items: center; gap: var(--s2); background: var(--card); border: var(--edge) solid var(--line); border-radius: 0.75rem; padding: var(--s1) var(--s2) var(--s1) var(--s3); margin: 0; }
 .pieces li::before { content: counter(piece) '.'; font-weight: 700; }
 .pieces li span { flex: 1; }
 .pieces button { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
@@ -214,8 +226,9 @@ main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
 .demo-help { border: var(--edge) dashed var(--accent); border-radius: 1rem; padding: 0.25rem 1rem 0.75rem; margin: 1.25rem 0; background: var(--card); }
 .demo-label { font-weight: 700; color: var(--accent); margin: 0.5rem 0; }
 .paths { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1rem 0; }
-.checklist { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 0.75rem; }
-.checklist li { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.75rem 1rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+.checklist { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--s4); }
+.checklist.two { grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
+.checklist li { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: var(--s4) var(--s5); display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); }
 .checklist li.seen { border-color: var(--success); }
 .checklist li.seen .pill { background: var(--leaf); }
 .checklist p { margin: 0; flex: 1; }

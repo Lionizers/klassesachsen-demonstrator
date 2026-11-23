@@ -66,8 +66,8 @@ export function QrSheet({ onBack }: { onBack: () => void }) {
         ))}
       </ul>
       <div class="actions">
-        <button type="button" onClick={() => print()}>Drucken</button>
         <button type="button" onClick={onBack}>Zurück zum Ort</button>
+        <button type="button" class="end" onClick={() => print()}>Drucken</button>
       </div>
     </section>
   )

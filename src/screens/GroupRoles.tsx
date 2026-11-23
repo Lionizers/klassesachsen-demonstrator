@@ -29,9 +29,9 @@ export function GroupRoles({ go, group, setGroup }: ScreenProps) {
         ))}
       </ol>
       <div class="actions">
-        <button type="button" class="primary" onClick={() => go('map')}>Zur Karte</button>
         <button type="button" onClick={() => go('collection')}>Sammlung</button>
         <button type="button" onClick={nextRound}>Neue Runde</button>
+        <button type="button" class="primary end" onClick={() => go('map')}>Zur Karte</button>
       </div>
     </section>
   )
