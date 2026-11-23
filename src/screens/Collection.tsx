@@ -4,7 +4,7 @@ import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfel
 import type { Minigame } from '../minigames/model'
 import { MINIGAMES_KEY, initialProgress, type Progress } from '../minigames/progress'
 import { CHARACTER_KEY, collected, wornOf, type Character } from '../collection/items'
-import { ArtPaths, BODY, CHARACTER_VIEWBOX, ItemImage } from '../collection/ItemArt'
+import { ArtPaths, BODY, CHARACTER_VIEWBOX, ItemImage, ItemProgress } from '../collection/ItemArt'
 import { SettingsContext, text } from '../settings'
 import { Collage } from '../collage/Collage'
 import type { ScreenProps } from './types'
@@ -52,6 +52,7 @@ export function Collection({ go }: ScreenProps) {
     <section aria-labelledby="collection-title">
       {alert}
       {heading}
+      <ItemProgress games={GAMES} found={items} />
       <svg
         viewBox={CHARACTER_VIEWBOX}
         class="character"

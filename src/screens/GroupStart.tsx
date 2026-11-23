@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from 'preact/hooks'
 import { GROUP_KEY, MAX_NAME_LENGTH, SUGGESTED_NAMES, nameForCode, validateName, type Group } from '../group'
 import { save } from '../store/db'
 import { SettingsContext, text } from '../settings'
+import { Fidelius } from '../fidelius'
 import type { ScreenProps } from './types'
 
 const CODE_HINT = { standard: 'Steht auf dem Zettel eurer Lehrkraft.', easy: 'Der Code steht auf eurem Zettel.' }
@@ -40,7 +41,7 @@ export function GroupStart({ go, setGroup, startCode }: ScreenProps) {
     <section aria-labelledby="start-title">
       <h2 id="start-title" tabIndex={-1}>Wie heißt eure Gruppe?</h2>
       {error && <p role="alert">{error}</p>}
-      <p>Ihr braucht kein Konto. Wählt einen Namen für eure Gruppe.</p>
+      <Fidelius>Hallo! Ich bin Fuchs Fidelius und begleite euch auf der Entdeckerreise. Ihr braucht kein Konto. Wählt einen Namen für eure Gruppe.</Fidelius>
       <form
         onSubmit={(e) => {
           e.preventDefault()

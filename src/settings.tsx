@@ -78,7 +78,7 @@ export function ReadAloud({ text: content }: { text?: string }) {
           <path d="M3 9v6h4l5 5V4L7 9z" fill="currentColor" />
           <path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" />
         </svg>
-        Vorlesen
+        <span class="label">Vorlesen</span>
       </button>
       {notice && <p role="alert">{notice}</p>}
     </>
@@ -88,6 +88,7 @@ export function ReadAloud({ text: content }: { text?: string }) {
 type PanelProps = { settings: Settings; onChange: (settings: Settings) => void }
 
 export function SettingsPanel({ settings, onChange }: PanelProps) {
+  const [open, setOpen] = useState(false)
   const [error, setError] = useState<string>()
 
   function update(patch: Partial<Settings>) {
@@ -100,20 +101,28 @@ export function SettingsPanel({ settings, onChange }: PanelProps) {
   }
 
   return (
-    <details class="settings">
-      <summary>Einstellungen</summary>
-      {error && <p role="alert">{error}</p>}
-      <label for="rate">Vorlese-Geschwindigkeit: {settings.rate.toLocaleString('de-DE')}×</label>
-      <input id="rate" type="range" min="0.5" max="1.5" step="0.25" value={settings.rate}
-        onInput={(e) => update({ rate: Number(e.currentTarget.value) })} />
-      <label><input type="checkbox" checked={settings.easy} onChange={(e) => update({ easy: e.currentTarget.checked })} /> Einfache Sprache</label>
-      <label><input type="checkbox" checked={settings.contrast} onChange={(e) => update({ contrast: e.currentTarget.checked })} /> Hoher Kontrast</label>
-      <label><input type="checkbox" checked={settings.sound} onChange={(e) => update({ sound: e.currentTarget.checked })} /> Ton</label>
-      <label for="tempo">Spieltempo</label>
-      <select id="tempo" value={settings.tempo} onChange={(e) => update({ tempo: e.currentTarget.value as Tempo })}>
-        <option value="normal">Normal</option>
-        <option value="slow">Langsam</option>
-      </select>
-    </details>
+    <>
+      <button type="button" class="settings-toggle" aria-expanded={open} aria-controls="settings" onClick={() => setOpen(!open)}>
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+          <path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" fill="currentColor" transform="translate(-1 0)" />
+        </svg>
+        <span class="label">Einstellungen</span>
+      </button>
+      {/* Below the menu in the page flow: an overlay would cover the view the settings change. */}
+      <div id="settings" class="settings" hidden={!open}>
+        {error && <p role="alert">{error}</p>}
+        <label for="rate">Vorlese-Geschwindigkeit: {settings.rate.toLocaleString('de-DE')}×</label>
+        <input id="rate" type="range" min="0.5" max="1.5" step="0.25" value={settings.rate}
+          onInput={(e) => update({ rate: Number(e.currentTarget.value) })} />
+        <label><input type="checkbox" checked={settings.easy} onChange={(e) => update({ easy: e.currentTarget.checked })} /> Einfache Sprache</label>
+        <label><input type="checkbox" checked={settings.contrast} onChange={(e) => update({ contrast: e.currentTarget.checked })} /> Hoher Kontrast</label>
+        <label><input type="checkbox" checked={settings.sound} onChange={(e) => update({ sound: e.currentTarget.checked })} /> Ton</label>
+        <label for="tempo">Spieltempo</label>
+        <select id="tempo" value={settings.tempo} onChange={(e) => update({ tempo: e.currentTarget.value as Tempo })}>
+          <option value="normal">Normal</option>
+          <option value="slow">Langsam</option>
+        </select>
+      </div>
+    </>
   )
 }

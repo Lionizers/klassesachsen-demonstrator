@@ -3,7 +3,8 @@ import type { FunctionComponent } from 'preact'
 import { GROUP_KEY, type Group } from './group'
 import { load, save } from './store/db'
 import { focusHeading } from './focus'
-import { OfflineStatus } from './offline'
+import { OfflineBadge, TechPanel, useOffline } from './offline'
+import { FoxArt } from './fidelius'
 import { DEFAULTS, ReadAloud, SETTINGS_KEY, SettingsContext, SettingsPanel, type Settings } from './settings'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
@@ -27,6 +28,7 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(DEFAULTS)
   const [purgeError, setPurgeError] = useState(false)
   const [startCode, setStartCode] = useState<string>()
+  const offline = useOffline()
 
   useEffect(() => {
     const code = new URLSearchParams(location.search).get('start')
@@ -66,19 +68,31 @@ export function App() {
   return (
     <SettingsContext.Provider value={settings}>
       <header class="site-header">
-        <h1>Demonstrator der Lionizers GmbH</h1>
-        <p>Ortsbasierte Lern- und Entdecker-App für Schulklassen · Web-App, installierbar und offline nutzbar</p>
-        <OfflineStatus />
+        <div class="brand">
+          <FoxArt class="logo" />
+          <h1>Entdeckerreise <span>Demonstrator der Lionizers GmbH</span></h1>
+        </div>
+        <OfflineBadge kb={offline.kb} />
+        <nav aria-label="Menü" class="menu">
+          <ReadAloud />
+          <SettingsPanel settings={settings} onChange={setSettings} />
+          <button type="button" onClick={() => go('teacher')}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M12 3 1 8l11 5 9-4.1V15h2V8Z M5 12.2V16c0 2 3.1 4 7 4s7-2 7-4v-3.8l-7 3.2Z" fill="currentColor" />
+            </svg>
+            <span class="label">Lehrkräfte-Ansicht</span>
+          </button>
+        </nav>
         {purgeError && <p role="alert">Abgelaufene Gruppendaten konnten nicht gelöscht werden.</p>}
-        <button type="button" onClick={() => go('teacher')}>Lehrkräfte-Ansicht</button>
-        <ReadAloud />
-        <SettingsPanel settings={settings} onChange={setSettings} />
       </header>
       <main>
         {error && <p role="alert">{error}</p>}
         {Current && <Current go={go} group={group} setGroup={setGroup} startCode={startCode} />}
         <p class="note">Alle Inhalte sind erfundene Beispiele. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>
       </main>
+      <footer class="site-footer">
+        <TechPanel {...offline} />
+      </footer>
     </SettingsContext.Provider>
   )
 }

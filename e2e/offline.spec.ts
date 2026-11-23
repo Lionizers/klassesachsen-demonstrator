@@ -11,7 +11,7 @@ const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'estimate')!
 const dilemma = burgFunkelfels.find((g): g is Dilemma => g.kind === 'dilemma')!
 
-const ready = (page: Page) => page.getByRole('status').filter({ hasText: /^bereit für offline ✔ · [\d.]+ kB$/ })
+const ready = (page: Page) => page.getByRole('banner').getByRole('status').filter({ hasText: /^offline bereit$/ })
 const queue = (page: Page) => page.getByText(/^Offene Ergebnisse:/)
 const SYNCED = /^Offene Ergebnisse: 0 · zuletzt synchronisiert \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
@@ -22,10 +22,12 @@ async function enterPlace(page: Page) {
   await reachPlaceFromGroup(page)
 }
 
-test('AE1: the header says ready for offline with the download size once everything is cached', async ({ page }) => {
+test('AE1: the header says ready for offline once everything is cached; the download size is in the technical details', async ({ page }) => {
   await page.goto('/')
   await expect(ready(page)).toBeVisible()
-  const kb = Number((await ready(page).textContent())!.match(/([\d.]+) kB/)![1].replace('.', ''))
+  await page.getByText('Technik für Prüfer', { exact: true }).click()
+  const size = page.getByText(/^Download für offline: [\d.]+ kB$/)
+  const kb = Number((await size.textContent())!.match(/([\d.]+) kB/)![1].replace('.', ''))
   expect(kb).toBeGreaterThan(0)
   await expect(page.getByText('Sync-Ziel: lokale Simulation, kein Server')).toBeVisible()
 })

@@ -1,4 +1,4 @@
-import { ITEM_BOX, type ItemArt } from '../minigames/model'
+import { ITEM_BOX, type ItemArt, type Minigame } from '../minigames/model'
 
 type Paths = ItemArt['paths']
 
@@ -23,5 +23,21 @@ export function ItemImage({ art, size = ITEM_BOX }: { art: ItemArt; size?: numbe
     <svg viewBox={`0 0 ${ITEM_BOX} ${ITEM_BOX}`} width={size} height={size} aria-hidden="true" class="item">
       <ArtPaths paths={art.paths} />
     </svg>
+  )
+}
+
+/** "N von M Items" with a slot per item; the slots only repeat the number, so they are hidden from screen readers. */
+export function ItemProgress({ games, found }: { games: Minigame[]; found: Minigame[] }) {
+  return (
+    <div class="item-progress">
+      <ul aria-hidden="true">
+        {games.map((game) => (
+          <li key={game.id} class={found.includes(game) ? 'found' : undefined}>
+            <ItemImage art={game.item} size={40} />
+          </li>
+        ))}
+      </ul>
+      <p>{found.length} von {games.length} Items</p>
+    </div>
   )
 }

@@ -332,9 +332,10 @@ async function tabTo(page: Page, target: Locator) {
 test('AE7: settings and the whole quest run on the keyboard alone with a visible focus', async ({ page }) => {
   const button = (name: string | RegExp) => page.getByRole('button', { name, exact: typeof name === 'string' })
   await page.goto('/')
-  await tabTo(page, page.locator('summary'))
+  const settings = page.getByRole('button', { name: 'Einstellungen' })
+  await tabTo(page, settings)
   await page.keyboard.press('Enter')
-  await expect(page.locator('details.settings')).toHaveAttribute('open', '')
+  await expect(settings).toHaveAttribute('aria-expanded', 'true')
   const rate = page.getByLabel('Vorlese-Geschwindigkeit')
   await tabTo(page, rate)
   await page.keyboard.press('ArrowRight')

@@ -3,7 +3,9 @@ import { useContext, useEffect, useState } from 'preact/hooks'
 import { rolesFor, type Group, type Role } from '../group'
 import { focusHeading } from '../focus'
 import { load, save } from '../store/db'
-import { ItemImage } from '../collection/ItemArt'
+import { ItemImage, ItemProgress } from '../collection/ItemArt'
+import { collected } from '../collection/items'
+import { Fidelius } from '../fidelius'
 import { ReadAloud, SettingsContext, playSuccessTone, text } from '../settings'
 import { GUIDE_NAME, PLACE_NAME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle, type Text } from './model'
@@ -63,8 +65,17 @@ export function Place({ group, onBack }: Props) {
             <ReadAloud text={text(result.consequence, easy)} />
           </>
         )}
-        <p class="earned">{earned}</p>
+        <div class="earned">
+          <svg viewBox="-50 -50 100 100" class="burst" aria-hidden="true">
+            {Array.from({ length: 12 }, (_, i) => (
+              <path key={i} d="M-4 -28 L0 -48 L4 -28 Z" fill={i % 2 ? '#ffd166' : '#f4845f'} transform={`rotate(${i * 30})`} />
+            ))}
+          </svg>
+          <ItemImage art={result.game.item} size={128} />
+          <p>{earned}</p>
+        </div>
         <ReadAloud text={earned} />
+        <ItemProgress games={GAMES} found={collected(GAMES, progress)} />
         <button type="button" onClick={() => show({})}>Zurück zur Übersicht von {PLACE_NAME}</button>
       </section>
     )
@@ -100,30 +111,33 @@ export function Place({ group, onBack }: Props) {
     <section aria-labelledby="place-title">
       {alert}
       {heading}
-      <p>{GUIDE_NAME} begrüßt euch am Burgtor. Wählt eine Station, die Reihenfolge ist euch überlassen.</p>
+      <Fidelius>Willkommen am Burgtor! Wählt eine Station, die Reihenfolge ist euch überlassen.</Fidelius>
       <p>
         {PLACE_LABEL[state]}
         {state === 'started' && `: ${doneCount} von ${GAMES.length} Stationen geschafft.`}
       </p>
-      <ul aria-label="Stationen">
+      <ItemProgress games={GAMES} found={collected(GAMES, progress)} />
+      <ul aria-label="Stationen" class="tiles">
         {GAMES.map((game) => {
           const status = progress.status[game.id]
+          const icon = <ItemImage art={game.item} size={56} />
           return (
-            <li key={game.id}>
+            <li key={game.id} class={`tile status-${status}`}>
               {status === 'done' ? (
-                <span>{text(game.title, easy)}</span>
+                <span class="tile-main">{icon}<span class="tile-name">{text(game.title, easy)}</span></span>
               ) : (
                 <button
                   type="button"
+                  class="tile-main"
                   onClick={() => {
                     apply({ type: 'open', id: game.id, at: Date.now() })
                     show({ active: game })
                   }}
                 >
-                  {text(game.title, easy)}
+                  {icon}<span class="tile-name">{text(game.title, easy)}</span>
                 </button>
-              )}{' '}
-              <span class="hint">({STATUS_LABEL[status]})</span>
+              )}
+              <span class="pill">{STATUS_LABEL[status]}</span>
             </li>
           )
         })}
@@ -158,25 +172,28 @@ function Station({ game, roles, hintsShown, attempts, apply, onDone, onSkip }: S
       <ReadAloud text={text(game.prompt, easy)} />
       <p class="reward"><ItemImage art={game.item} /> Belohnung: {text(game.reward, easy)}</p>
       {gameView()}
-      <div aria-live="polite">
+      <Fidelius live>
+        {hintsShown === 0 && <p>Kommt ihr nicht weiter? Fragt mich um Hilfe.</p>}
         {game.hints.slice(0, hintsShown).map((hint) => (
           <Fragment key={hint.standard}>
-            <p>{GUIDE_NAME}: {text(hint, easy)}</p>
+            <p>{text(hint, easy)}</p>
             <ReadAloud text={text(hint, easy)} />
           </Fragment>
         ))}
+      </Fidelius>
+      <div class="actions">
+        {/* aria-disabled instead of disabled: a disabled button would drop the keyboard focus to body. */}
+        <button
+          type="button"
+          aria-disabled={allHintsShown}
+          onClick={() => {
+            if (!allHintsShown) apply({ type: 'hint', id: game.id, index: hintsShown, at: Date.now() })
+          }}
+        >
+          {GUIDE_NAME} um Hilfe bitten
+        </button>
+        <button type="button" onClick={onSkip}>Später nachholen</button>
       </div>
-      {/* aria-disabled instead of disabled: a disabled button would drop the keyboard focus to body. */}
-      <button
-        type="button"
-        aria-disabled={allHintsShown}
-        onClick={() => {
-          if (!allHintsShown) apply({ type: 'hint', id: game.id, index: hintsShown, at: Date.now() })
-        }}
-      >
-        {GUIDE_NAME} um Hilfe bitten
-      </button>{' '}
-      <button type="button" onClick={onSkip}>Später nachholen</button>
     </section>
   )
 
@@ -214,7 +231,7 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
 
   return (
     <>
-      <ol aria-label="Reihenfolge">
+      <ol aria-label="Reihenfolge" class="pieces">
         {order.map((piece, i) => {
           const label = text(game.pieces[piece], easy)
           return (
