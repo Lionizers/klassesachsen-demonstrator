@@ -9,4 +9,6 @@ export type ScreenProps = {
   go: (screen: Screen) => void
   group: Group | undefined
   setGroup: (group: Group | undefined) => void
+  /** The `?start=` code the app was opened with, until the first navigation. */
+  startCode?: string
 }

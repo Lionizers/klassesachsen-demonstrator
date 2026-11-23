@@ -24,6 +24,12 @@ describe('group start', () => {
     expect(validateName('Fuchs')).toBeNull()
   })
 
+  it('reserves names starting with „Beispiel“ for the invented demo groups', () => {
+    expect(validateName('Beispiel Ahorn')).toMatch(/Beispiel/)
+    expect(validateName(' beispiel')).toMatch(/Beispiel/)
+    expect(validateName('Beispielhaft')).toBeNull()
+  })
+
   it('accepts a name of exactly the maximum length and rejects one character more', () => {
     expect(validateName('a'.repeat(MAX_NAME_LENGTH))).toBeNull()
     expect(validateName('a'.repeat(MAX_NAME_LENGTH + 1))).toMatch(/höchstens/)

@@ -1,26 +1,24 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
-import { GROUP_KEY, SUGGESTED_NAMES, startCode } from '../group'
-import { load, remove, save } from '../store/db'
+import { GROUP_KEY, SUGGESTED_NAMES, startCode, type Group } from '../group'
+import { load, removeAllExcept, save } from '../store/db'
 import { focusHeading } from '../focus'
+import { SETTINGS_KEY } from '../settings'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
-import { MINIGAMES_KEY, SYNC_KEY, initialProgress, placeState, type Progress } from '../minigames/progress'
-import { PROGRESS_KEY } from '../places/progress'
-import { CHARACTER_KEY } from '../collection/items'
+import { MINIGAMES_KEY, initialProgress, placeState, type Progress } from '../minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../collage/layout'
 import { DEMO_GROUPS } from '../teacher/demo'
-import { INDICATORS, LEVELS, indicators, isExpired } from '../teacher/report'
-import { PLACE_KEY, SCREEN_KEY, type ScreenProps } from './types'
+import { INDICATORS, LEVELS, RETENTION_WEEKS, indicators, isExpired } from '../teacher/report'
+import type { ScreenProps } from './types'
 
 /** Only suggested names: the class list can never hold a child's name. */
 export const CLASS_KEY = 'class'
-export type ClassList = { names: string[]; createdAt: string }
-/** Everything the device stores about its group; the class list and the device settings stay. */
-export const GROUP_DATA_KEYS = [GROUP_KEY, SCREEN_KEY, PLACE_KEY, PROGRESS_KEY, MINIGAMES_KEY, SYNC_KEY, CHARACTER_KEY, CONTRIBUTIONS_KEY]
+export type ClassList = { names: string[] }
+/** Everything else on the device belongs to its group, so a key added later is deleted with it. */
+const removeGroupData = () => removeAllExcept([CLASS_KEY, SETTINGS_KEY])
 
-/** Deletion period: 12 weeks after the quest was completed. */
 export async function purgeExpired(now: number): Promise<void> {
-  const progress = await load<Progress>(MINIGAMES_KEY)
-  if (progress && isExpired(progress, GAMES, now)) await remove(GROUP_DATA_KEYS)
+  const [group, progress] = await Promise.all([load<Group>(GROUP_KEY), load<Progress>(MINIGAMES_KEY)])
+  if (group && isExpired(group.createdAt, progress, GAMES, now)) await removeGroupData()
 }
 
 const DEMO = 'Beispielgruppe – erfundene Daten'
@@ -57,10 +55,13 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
   async function toggleClass(name: string) {
     const chosen = data!.cls?.names ?? []
     const names = SUGGESTED_NAMES.filter((n) => (n === name) !== chosen.includes(n))
-    const cls = { names, createdAt: data!.cls?.createdAt ?? new Date().toISOString() }
+    const before = data!.cls
     // Updated before the save, so a quick second click builds on this one.
-    setData({ ...data!, cls })
-    save(CLASS_KEY, cls).catch(() => setError('Die Gruppen der Klasse konnten nicht gespeichert werden.'))
+    setData({ ...data!, cls: { names } })
+    save(CLASS_KEY, { names }).catch(() => {
+      setData((d) => ({ ...d!, cls: before }))
+      setError('Die Gruppen der Klasse konnten nicht gespeichert werden.')
+    })
   }
 
   async function decide(id: string, released: boolean) {
@@ -77,7 +78,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
   async function deleteGroup(name: string) {
     if (!confirm(`Alle Daten der Gruppe ${name} auf diesem Gerät jetzt löschen? Das lässt sich nicht rückgängig machen.`)) return
     try {
-      await remove(GROUP_DATA_KEYS)
+      await removeGroupData()
     } catch {
       setError('Die Daten der Gruppe konnten nicht gelöscht werden.')
       return
@@ -97,12 +98,19 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
   const back = (target: View, label: string) => <button type="button" onClick={() => show(target)}>{label}</button>
 
   let content
+  const backToApp = <button type="button" onClick={() => go(group ? 'roles' : 'start')}>Zurück zur App</button>
   if (!data) {
-    content = <h2 tabIndex={-1}>Lehrkräfte-Ansicht</h2>
+    content = (
+      <>
+        <h2 tabIndex={-1}>Lehrkräfte-Ansicht</h2>
+        {/* Also the way out when loading failed. */}
+        {backToApp}
+      </>
+    )
   } else if (view.kind === 'codes') {
     content = <Codes names={data.cls?.names ?? []} onError={setError} back={back({ kind: 'overview' }, 'Zurück zur Übersicht')} />
   } else if (row?.progress && view.kind === 'raster') {
-    const reached = indicators(row.progress.events, GAMES)
+    const reached = indicators(row.progress, GAMES)
     content = (
       <>
         <h2 tabIndex={-1}>Kompetenzraster {row.name}</h2>
@@ -140,14 +148,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
         {row.demo && <p class="demo">{DEMO}</p>}
         <p>Quest: {PLACE_NAME}</p>
         <p>Datum: {date}</p>
-        {indicators(row.progress.events, GAMES).map((i) => (
-          <div key={i.id}>
-            <h3>{i.name}</h3>
-            <p>Niveaustufe: {i.levelName}</p>
-            <p>{i.description}</p>
-            <p class="hint">{i.rule}</p>
-          </div>
-        ))}
+        {indicators(row.progress, GAMES).map((i) => <div key={i.id}><Indicator {...i} /></div>)}
         <p>Die Zuordnung zu den Niveaustufen ist eine Beispielregel. Der Bericht beschreibt die Gruppe als Ganzes und ist eine Grundlage für das Gespräch mit der Klasse.</p>
         <div class="actions">
           <button type="button" onClick={() => print()}>Drucken oder als PDF speichern</button>
@@ -161,14 +162,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
         <h2 tabIndex={-1}>Gruppenansicht {row.name}</h2>
         {row.demo && <p class="demo">{DEMO}</p>}
         <ul aria-label="Indikatoren" class="indicators">
-          {indicators(row.progress.events, GAMES).map((i) => (
-            <li key={i.id}>
-              <h3>{i.name}</h3>
-              <p>Niveaustufe: {i.levelName}</p>
-              <p>{i.description}</p>
-              <p class="hint">{i.rule}</p>
-            </li>
-          ))}
+          {indicators(row.progress, GAMES).map((i) => <li key={i.id}><Indicator {...i} /></li>)}
         </ul>
         <div class="actions">
           {back({ kind: 'raster', name: row.name }, 'Kompetenzraster')}
@@ -183,7 +177,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
               <Contributions list={data.contributions} decide={decide} />
             )}
             <h3>Daten löschen</h3>
-            <p>Löscht sofort alle Daten dieser Gruppe auf diesem Gerät. Ohne Löschen geschieht das 12 Wochen nach Abschluss der Quest.</p>
+            <p>Löscht sofort alle Daten dieser Gruppe auf diesem Gerät. Ohne Löschen geschieht das {RETENTION_WEEKS} Wochen nach Abschluss der Quest oder nach der letzten Aktivität, spätestens am 1. August zum Ende des Schuljahres.</p>
             <button type="button" onClick={() => deleteGroup(row.name)}>Daten der Gruppe löschen</button>
           </>
         )}
@@ -226,7 +220,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
             )
           })}
         </ul>
-        <button type="button" onClick={() => go(group ? 'roles' : 'start')}>Zurück zur App</button>
+        {backToApp}
       </>
     )
   }
@@ -238,6 +232,17 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
       {/* Always rendered: a live region must exist before its text arrives to be announced. */}
       <p role="status">{status}</p>
     </section>
+  )
+}
+
+function Indicator({ name, levelName, description, rule }: ReturnType<typeof indicators>[number]) {
+  return (
+    <>
+      <h3>{name}</h3>
+      <p>Niveaustufe: {levelName}</p>
+      <p>{description}</p>
+      <p class="hint">{rule}</p>
+    </>
   )
 }
 

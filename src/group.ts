@@ -6,7 +6,8 @@ export const SUGGESTED_NAMES = [
 export const ROLES = ['Protokoll', 'Navigation', 'Recherche'] as const
 export type Role = (typeof ROLES)[number]
 
-export type Group = { name: string; round: number }
+/** `createdAt` starts the deletion periods, see teacher/report.ts. */
+export type Group = { name: string; round: number; createdAt: number }
 export const GROUP_KEY = 'group'
 export const MAX_NAME_LENGTH = 30
 
@@ -19,6 +20,8 @@ export function rolesFor(round: number): Role[] {
 export function validateName(name: string): string | null {
   const trimmed = name.trim()
   if (trimmed === '') return 'Bitte einen Gruppennamen eingeben.'
+  // The teacher view tells the invented demo groups apart from real ones by this prefix.
+  if (/^beispiel\b/i.test(trimmed)) return 'Namen mit „Beispiel“ sind für die Beispielgruppen reserviert.'
   if (trimmed.length > MAX_NAME_LENGTH) return `Der Gruppenname darf höchstens ${MAX_NAME_LENGTH} Zeichen haben.`
   return null
 }

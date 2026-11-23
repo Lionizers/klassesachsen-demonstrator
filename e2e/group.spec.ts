@@ -41,11 +41,11 @@ test('AE4/AE6: roles rotate, and group and round survive a reload', async ({ pag
   await expect(roles.first()).toHaveText(/Navigation/)
 })
 
-test('AE7: stored data holds only the group name and the round', async ({ page }) => {
+test('AE7: stored data holds only the group name, the round and the creation time', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
-  expect(await readKey(page, GROUP_KEY)).toEqual({ name: 'Otter', round: 0 })
+  expect(await readKey(page, GROUP_KEY)).toEqual({ name: 'Otter', round: 0, createdAt: expect.any(Number) })
 })
 
 test('AE5: empty name field explains why saving is blocked', async ({ page }) => {

@@ -1,23 +1,17 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
 import jsQR from 'jsqr'
 import { GROUP_KEY } from '../src/group'
-import { burgFunkelfels } from '../src/minigames/burg-funkelfels'
+import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import { MINIGAMES_KEY, initialProgress, reduceProgress, type Progress, type ProgressAction } from '../src/minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../src/collage/layout'
 import { LEVELS } from '../src/teacher/report'
-import { api, dumpStore, heading, readKey, readStored, reachPlaceFromGroup, writeStored } from './helpers'
+import { api, axeClean, dumpStore, heading, readKey, readStored, reachPlaceFromGroup, writeStored } from './helpers'
+import { FAIL_PUT, failPut } from './fail-put'
 
-const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const DAY = 24 * 60 * 60 * 1000
 const NOW = Date.UTC(2026, 10, 23, 9)
 const DEMO = 'Beispielgruppe – erfundene Daten'
 const RANKING = /\b(Platz|Rang\w*|beste[nrs]?)\b/i
-
-async function axeClean(page: Page) {
-  const result = await new AxeBuilder({ page }).withTags(WCAG).analyze()
-  expect(result.violations).toEqual([])
-}
 
 /** Every teacher view: accessible, no free text field, no ranking. */
 async function checkView(page: Page) {
@@ -65,7 +59,7 @@ test('AE1: chosen groups get a start code and a QR code that starts the group', 
   await openTeacher(page)
   await expect(page.locator('main')).toContainText('ohne Anmeldung und ohne PIN')
   await pickClass(page, 'Otter', 'Moosgrün')
-  await expect.poll(() => readKey(page, 'class')).toMatchObject({ names: ['Otter', 'Moosgrün'], createdAt: expect.any(String) })
+  await expect.poll(() => readKey(page, 'class')).toEqual({ names: ['Otter', 'Moosgrün'] })
   await page.getByRole('button', { name: 'Startcodes drucken' }).click()
   await expect(heading(page, 'Startcodes')).toBeFocused()
   await expect(page.getByText('Startcode: OTTER')).toBeVisible()
@@ -86,7 +80,7 @@ test('AE1: chosen groups get a start code and a QR code that starts the group', 
 
   await page.goto(url!)
   await expect(heading(page, 'Gruppe Otter')).toBeFocused()
-  expect(await readKey(page, GROUP_KEY)).toEqual({ name: 'Otter', round: 0 })
+  expect(await readKey(page, GROUP_KEY)).toEqual({ name: 'Otter', round: 0, createdAt: expect.any(Number) })
 })
 
 test('AE1: a start code can be typed in, an unknown one is refused visibly', async ({ page }) => {
@@ -107,13 +101,13 @@ test('AE2/AE10: the overview lists every group alphabetically with station and s
   await openTeacher(page)
   await pickClass(page, 'Igel', 'Otter')
   const names = page.getByRole('list', { name: 'Gruppen' }).getByRole('listitem').locator('strong')
-  await expect(names).toHaveText(['Ahorn', 'Birke', 'Eiche', 'Igel', 'Otter'])
+  await expect(names).toHaveText(['Beispiel Ahorn', 'Beispiel Birke', 'Beispiel Eiche', 'Igel', 'Otter'])
   await expect(row(page, 'Otter')).toContainText(`Station: ${burgFunkelfels[0].title.standard}`)
   await expect(row(page, 'Otter')).toContainText('Status: unterwegs')
   await expect(row(page, 'Igel')).toContainText('keine Daten auf diesem Gerät')
   await expect(row(page, 'Igel').getByRole('button')).toHaveCount(0)
-  await expect(row(page, 'Ahorn')).toContainText(DEMO)
-  await expect(row(page, 'Ahorn')).toContainText('Status: Quest abgeschlossen')
+  await expect(row(page, 'Beispiel Ahorn')).toContainText(DEMO)
+  await expect(row(page, 'Beispiel Ahorn')).toContainText('Status: Quest abgeschlossen')
   for (const level of LEVELS) await expect(page.locator('main')).not.toContainText(level)
   await checkView(page)
 })
@@ -144,7 +138,7 @@ test('AE3/AE4: group view and competence grid show the three indicators, marked 
 test('AE3: a demo group is labelled as invented and has no delete or image functions', async ({ page }) => {
   await page.goto('/')
   await openTeacher(page)
-  await openGroup(page, 'Eiche')
+  await openGroup(page, 'Beispiel Eiche')
   await expect(page.locator('main')).toContainText(DEMO)
   await expect(page.getByRole('button', { name: /löschen/ })).toHaveCount(0)
   await checkView(page)
@@ -155,9 +149,9 @@ test('AE5: the printed report holds levels, descriptions, date and quest, but no
   await page.addInitScript(() => { window.print = () => { (window as unknown as { printed: boolean }).printed = true } })
   await page.goto('/')
   await openTeacher(page)
-  await openGroup(page, 'Ahorn')
+  await openGroup(page, 'Beispiel Ahorn')
   await page.getByRole('button', { name: 'Bericht' }).click()
-  await expect(heading(page, 'Bericht Ahorn')).toBeFocused()
+  await expect(heading(page, 'Bericht Beispiel Ahorn')).toBeFocused()
   await checkView(page)
   await page.getByRole('button', { name: 'Drucken oder als PDF speichern' }).click()
   expect(await page.evaluate(() => (window as unknown as { printed?: boolean }).printed)).toBe(true)
@@ -204,6 +198,8 @@ test('AE7: deleting removes every group key at once, only class and settings sta
   await page.getByRole('button', { name: burgFunkelfels[0].title.standard }).click()
   await expect.poll(() => readKey(page, MINIGAMES_KEY)).toBeTruthy()
   await writeStored(page, CONTRIBUTIONS_KEY, () => [])
+  // A key this version does not know yet must not survive the deletion either.
+  await writeStored(page, 'future-key', () => 'group data')
   await openTeacher(page)
   await pickClass(page, 'Otter')
   await openGroup(page, 'Otter')
@@ -217,7 +213,7 @@ test('AE7: deleting removes every group key at once, only class and settings sta
   await page.getByRole('button', { name: 'Daten der Gruppe löschen' }).click()
   await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
   await expect(page.getByRole('status').filter({ hasText: 'Die Daten der Gruppe Otter sind gelöscht.' })).toBeVisible()
-  expect(Object.keys(await dumpStore(page)).every((k) => ['class', 'settings'].includes(k))).toBe(true)
+  expect(Object.keys(await dumpStore(page)).filter((k) => !['class', 'settings'].includes(k))).toEqual([])
   await expect(row(page, 'Otter')).toContainText('keine Daten auf diesem Gerät')
   await checkView(page)
   await page.getByRole('button', { name: 'Zurück zur App' }).click()
@@ -245,4 +241,167 @@ test('AE8: a failed retention check is reported and the group can still play', a
   `)
   await startGroup(page)
   await expect(page.locator('.site-header').getByText('Abgelaufene Gruppendaten konnten nicht gelöscht werden.')).toHaveRole('alert')
+})
+
+const at = (berlin: string) => Date.parse(`${berlin}+02:00`)
+
+test('AE8: an unfinished quest is kept 12 weeks after its last activity and deleted 1 ms later', async ({ page }) => {
+  await page.clock.setFixedTime(NOW)
+  await startGroup(page)
+  await reachPlaceFromGroup(page)
+  await page.getByRole('button', { name: burgFunkelfels[0].title.standard }).click()
+  await expect.poll(() => readKey(page, MINIGAMES_KEY)).toBeTruthy()
+  await page.clock.setFixedTime(NOW + 84 * DAY)
+  await page.reload()
+  await expect(heading(page, PLACE_NAME)).toBeVisible()
+  await page.clock.setFixedTime(NOW + 84 * DAY + 1)
+  await page.reload()
+  await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeVisible()
+  expect(Object.keys(await dumpStore(page)).filter((k) => !['class', 'settings', 'screen'].includes(k))).toEqual([])
+})
+
+test('AE8: all group data is deleted at the end of the school year, from 1 August 00:00', async ({ page }) => {
+  await page.clock.setFixedTime(at('2027-07-01T09:00'))
+  await startGroup(page)
+  await page.clock.setFixedTime(at('2027-07-31T23:59:59.999'))
+  await page.reload()
+  await expect(heading(page, 'Gruppe Otter')).toBeVisible()
+  await page.clock.setFixedTime(at('2027-08-01T00:00'))
+  await page.reload()
+  await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeVisible()
+  expect(await readKey(page, GROUP_KEY)).toBeUndefined()
+})
+
+test('a start code on a device that already has a group is reported as not used and removed from the address', async ({ page }) => {
+  await startGroup(page)
+  await page.goto('/?start=IGEL')
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Auf diesem Gerät spielt schon die Gruppe Otter. Der Startcode IGEL wurde nicht verwendet.')
+  await expect(heading(page, 'Gruppe Otter')).toBeVisible()
+  expect(new URL(page.url()).search).toBe('')
+  expect(await readKey(page, GROUP_KEY)).toMatchObject({ name: 'Otter' })
+})
+
+test('after deleting a group started by QR code, its start code does not start it again', async ({ page }) => {
+  await page.goto('/?start=OTTER')
+  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
+  expect(new URL(page.url()).search).toBe('')
+  await openTeacher(page)
+  await openGroup(page, 'Otter')
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Daten der Gruppe löschen' }).click()
+  await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
+  await page.getByRole('button', { name: 'Zurück zur App' }).click()
+  await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeFocused()
+  await page.reload()
+  await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeVisible()
+  expect(await readKey(page, GROUP_KEY)).toBeUndefined()
+})
+
+test('the start code hint and error follow easy language, the error sits above the content', async ({ page }) => {
+  await page.goto('/')
+  await page.getByText('Einstellungen', { exact: true }).click()
+  await page.getByLabel('Einfache Sprache').check()
+  await expect(page.getByText('Der Code steht auf eurem Zettel.')).toBeVisible()
+  await page.getByLabel('Startcode').fill('hamster')
+  await page.getByRole('button', { name: 'Mit Startcode starten' }).click()
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Diesen Code gibt es nicht. Schaut noch einmal auf euren Zettel.')
+  await expect(page.locator('form').getByRole('alert')).toHaveCount(0)
+})
+
+test('a real group named like a demo group stays apart from it', async ({ page }) => {
+  await page.goto('/')
+  await page.getByLabel('Eigener Gruppenname').fill('Ahorn')
+  await page.getByRole('button', { name: 'Gruppe anlegen' }).click()
+  await expect(heading(page, 'Gruppe Ahorn')).toBeFocused()
+  await openTeacher(page)
+  await page.getByRole('button', { name: 'Ahorn ansehen', exact: true }).click()
+  await expect(heading(page, 'Gruppenansicht Ahorn')).toBeFocused()
+  await expect(page.locator('main')).not.toContainText(DEMO)
+})
+
+test('deleting a group also empties the offline counter of open results', async ({ page, context }) => {
+  await startGroup(page)
+  await reachPlaceFromGroup(page)
+  await context.setOffline(true)
+  await page.getByRole('button', { name: burgFunkelfels[0].title.standard }).click()
+  const queue = page.getByText(/^Offene Ergebnisse:/)
+  await expect(queue).toHaveText('Offene Ergebnisse: 1')
+  await openTeacher(page)
+  await openGroup(page, 'Otter')
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Daten der Gruppe löschen' }).click()
+  await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
+  await expect(queue).toHaveText('Offene Ergebnisse: 0')
+})
+
+test('loading fails: the teacher view says so and still leads back to the app, also after a reload', async ({ page }) => {
+  await page.addInitScript(`
+    const get = IDBObjectStore.prototype.get
+    IDBObjectStore.prototype.get = function (key) {
+      if (key === 'class') throw new DOMException('read failed', 'UnknownError')
+      return get.apply(this, arguments)
+    }
+  `)
+  await startGroup(page)
+  await openTeacher(page)
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Daten dieses Geräts konnten nicht geladen werden.')
+  await page.reload()
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Daten dieses Geräts konnten nicht geladen werden.')
+  await page.getByRole('button', { name: 'Zurück zur App' }).click()
+  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
+})
+
+test('saving the class list fails: an error is shown and the choice is taken back', async ({ page }) => {
+  await page.addInitScript(FAIL_PUT)
+  await page.goto('/')
+  await openTeacher(page)
+  await failPut(page, 'class')
+  const otter = page.getByRole('group', { name: 'Gruppen der Klasse' }).getByRole('checkbox', { name: 'Otter', exact: true })
+  await otter.click()
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Gruppen der Klasse konnten nicht gespeichert werden.')
+  await expect(otter).not.toBeChecked()
+  expect(await readKey(page, 'class')).toBeUndefined()
+})
+
+test('saving a release fails: an error is shown and the picture stays undecided', async ({ page }) => {
+  await page.addInitScript(FAIL_PUT)
+  await startGroup(page)
+  await writeStored(page, CONTRIBUTIONS_KEY, () => {
+    const png = new Blob([new Uint8Array([137, 80, 78, 71])], { type: 'image/png' })
+    return [{ id: '00000000-0000-4000-8000-00000000000a', createdAt: '2026-11-23T09:00:00.000Z', type: 'item-collage', items: ['turmuhr'], released: false, png, preview: png }]
+  })
+  await openTeacher(page)
+  await openGroup(page, 'Otter')
+  await failPut(page, CONTRIBUTIONS_KEY)
+  await page.getByRole('button', { name: 'Freigeben' }).click()
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Freigabe konnte nicht gespeichert werden.')
+  await expect(page.getByRole('button', { name: 'Freigeben' })).toHaveAttribute('aria-pressed', 'false')
+  expect(await readStored(page, CONTRIBUTIONS_KEY, (l: Contribution[]) => l.map((c) => c.released))).toEqual([false])
+})
+
+test('deleting fails: an error is shown and the group data stays', async ({ page }) => {
+  await page.addInitScript(() => {
+    IDBObjectStore.prototype.delete = () => { throw new DOMException('delete failed', 'UnknownError') }
+  })
+  await startGroup(page)
+  await openTeacher(page)
+  await openGroup(page, 'Otter')
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Daten der Gruppe löschen' }).click()
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Daten der Gruppe konnten nicht gelöscht werden.')
+  await expect(heading(page, 'Gruppenansicht Otter')).toBeVisible()
+  expect(await readKey(page, GROUP_KEY)).toMatchObject({ name: 'Otter' })
+})
+
+test('the QR codes cannot be drawn: an error is shown, the typed start codes stay', async ({ page }) => {
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toDataURL = () => { throw new Error('canvas blocked') }
+  })
+  await page.goto('/')
+  await openTeacher(page)
+  await pickClass(page, 'Otter')
+  await page.getByRole('button', { name: 'Startcodes drucken' }).click()
+  await expect(heading(page, 'Startcodes')).toBeFocused()
+  await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die QR-Codes konnten nicht erzeugt werden.')
+  await expect(page.getByText('Startcode: OTTER')).toBeVisible()
 })

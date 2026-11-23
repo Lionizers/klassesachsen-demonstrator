@@ -1,8 +1,10 @@
 import type { Minigame } from '../minigames/model'
 import { initialProgress, placeState, type GameEvent, type Progress } from '../minigames/progress'
+import { collected } from '../collection/items'
 
 export const LEVELS = ['Einblick gewinnen', 'Kennen', 'Anwenden', 'Beurteilen/Sich positionieren', 'Gestalten'] as const
-export const RETENTION_MS = 84 * 24 * 60 * 60 * 1000
+export const RETENTION_WEEKS = 12
+export const RETENTION_MS = RETENTION_WEEKS * 7 * 24 * 60 * 60 * 1000
 
 type Facts = { stations: number; done: number; skipped: number; hints: number; retries: number; positions: number; minutes: number; opened: boolean }
 /** Checked in order, the first match sets the level; the level 1 rule matches always. */
@@ -84,11 +86,12 @@ export function activeMinutes(events: GameEvent[]): number {
   return Math.floor(ms / 60_000)
 }
 
-export function indicators(events: GameEvent[], games: Minigame[]) {
+export function indicators(progress: Progress, games: Minigame[]) {
+  const { events } = progress
   const of = (code: GameEvent['code'], value?: string) => events.filter((e) => e.code === code && (value === undefined || e.value === value))
   const facts: Facts = {
     stations: games.length,
-    done: new Set(of('E2', 'done').map((e) => e.minigameId)).size,
+    done: collected(games, initialProgress(games, progress)).length,
     skipped: of('E2', 'skipped').length,
     hints: of('E5').length,
     retries: of('E3').filter((e) => Number(e.value) > 1).length,
@@ -110,7 +113,21 @@ export function questCompletedAt(progress: Progress, games: Minigame[]): number 
   return finished.length ? Math.max(...finished) : undefined
 }
 
-export function isExpired(progress: Progress, games: Minigame[], now: number): boolean {
-  const completed = questCompletedAt(progress, games)
-  return completed !== undefined && now - completed > RETENTION_MS
+/**
+ * The first moment of the next school year after `at`. Saxony's school year ends on 31 July; Saxony is in
+ * Europe/Berlin, which is always on summer time (UTC+2) on 1 August, so the boundary is a fixed UTC offset.
+ */
+export function schoolYearEnd(at: number): number {
+  const boundary = (year: number) => Date.UTC(year, 7, 1) - 2 * 60 * 60 * 1000
+  const year = new Date(at).getUTCFullYear()
+  return at < boundary(year) ? boundary(year) : boundary(year + 1)
+}
+
+/**
+ * Deleted 12 weeks after completion, an unfinished quest 12 weeks after its last activity,
+ * and all group data at the end of the school year the group was created in.
+ */
+export function isExpired(createdAt: number, progress: Progress | undefined, games: Minigame[], now: number): boolean {
+  const since = (progress && questCompletedAt(progress, games)) ?? progress?.events.at(-1)?.at ?? createdAt
+  return now - since > RETENTION_MS || now >= schoolYearEnd(createdAt)
 }

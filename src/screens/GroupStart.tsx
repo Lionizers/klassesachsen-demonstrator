@@ -1,35 +1,35 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useContext, useEffect, useState } from 'preact/hooks'
 import { GROUP_KEY, MAX_NAME_LENGTH, SUGGESTED_NAMES, nameForCode, validateName, type Group } from '../group'
 import { save } from '../store/db'
+import { SettingsContext, text } from '../settings'
 import type { ScreenProps } from './types'
 
-export function GroupStart({ go, setGroup }: ScreenProps) {
+const CODE_HINT = { standard: 'Steht auf dem Zettel eurer Lehrkraft.', easy: 'Der Code steht auf eurem Zettel.' }
+const UNKNOWN_CODE = { standard: 'Diesen Startcode gibt es nicht. Bitte prüft die Schreibweise.', easy: 'Diesen Code gibt es nicht. Schaut noch einmal auf euren Zettel.' }
+
+export function GroupStart({ go, setGroup, startCode }: ScreenProps) {
+  const { easy } = useContext(SettingsContext)
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
-  const [codeError, setCodeError] = useState<string>()
-  const [saveError, setSaveError] = useState<string>()
-  const error = validateName(name)
+  const [error, setError] = useState<string>()
+  const nameError = validateName(name)
 
   useEffect(() => {
-    const fromQr = new URLSearchParams(location.search).get('start')
-    if (fromQr === null) return
-    // Dropped from the address, so this screen does not start the group again after its data was deleted.
-    history.replaceState(null, '', location.pathname)
-    startWith(fromQr)
+    if (startCode !== undefined) startWith(startCode)
   }, [])
 
   function startWith(startCode: string) {
     const found = nameForCode(startCode)
     if (found) create(found)
-    else setCodeError('Diesen Startcode gibt es nicht. Bitte prüft die Schreibweise.')
+    else setError(text(UNKNOWN_CODE, easy))
   }
 
   async function create(groupName: string) {
-    const group: Group = { name: groupName.trim(), round: 0 }
+    const group: Group = { name: groupName.trim(), round: 0, createdAt: Date.now() }
     try {
       await save(GROUP_KEY, group)
     } catch {
-      setSaveError('Die Gruppe konnte nicht gespeichert werden.')
+      setError('Die Gruppe konnte nicht gespeichert werden.')
       return
     }
     setGroup(group)
@@ -39,7 +39,7 @@ export function GroupStart({ go, setGroup }: ScreenProps) {
   return (
     <section aria-labelledby="start-title">
       <h2 id="start-title" tabIndex={-1}>Wie heißt eure Gruppe?</h2>
-      {saveError && <p role="alert">{saveError}</p>}
+      {error && <p role="alert">{error}</p>}
       <p>Ihr braucht kein Konto. Wählt einen Namen für eure Gruppe.</p>
       <form
         onSubmit={(e) => {
@@ -48,9 +48,8 @@ export function GroupStart({ go, setGroup }: ScreenProps) {
         }}
       >
         <label for="start-code">Startcode</label>
-        <p id="start-code-hint" class="hint">Steht auf dem Zettel eurer Lehrkraft.</p>
+        <p id="start-code-hint" class="hint">{text(CODE_HINT, easy)}</p>
         <input id="start-code" aria-describedby="start-code-hint" autoComplete="off" value={code} onInput={(e) => setCode(e.currentTarget.value)} />
-        {codeError && <p role="alert">{codeError}</p>}
         <button type="submit">Mit Startcode starten</button>
       </form>
       <ul aria-label="Vorschläge" class="choices">
@@ -63,7 +62,7 @@ export function GroupStart({ go, setGroup }: ScreenProps) {
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          if (!error) create(name)
+          if (!nameError) create(name)
         }}
       >
         <label for="own-name">Eigener Gruppenname</label>
@@ -75,8 +74,8 @@ export function GroupStart({ go, setGroup }: ScreenProps) {
           value={name}
           onInput={(e) => setName(e.currentTarget.value)}
         />
-        <p id="own-name-error" class="error" role="status">{error ?? ''}</p>
-        <button type="submit" disabled={!!error}>Gruppe anlegen</button>
+        <p id="own-name-error" class="error" role="status">{nameError ?? ''}</p>
+        <button type="submit" disabled={!!nameError}>Gruppe anlegen</button>
       </form>
     </section>
   )

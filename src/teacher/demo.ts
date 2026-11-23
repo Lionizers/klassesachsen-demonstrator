@@ -11,7 +11,7 @@ const votes = (positions: number[], minutes: number): ProgressAction[] =>
 /** Invented groups, so the views show something without a class; never stored, always labelled as invented. */
 export const DEMO_GROUPS: { name: string; progress: Progress }[] = [
   {
-    name: 'Ahorn',
+    name: 'Beispiel Ahorn',
     progress: play(
       { type: 'open', id: puzzle, at: at(0) },
       { type: 'hint', id: puzzle, index: 0, at: at(3) },
@@ -25,7 +25,7 @@ export const DEMO_GROUPS: { name: string; progress: Progress }[] = [
     ),
   },
   {
-    name: 'Birke',
+    name: 'Beispiel Birke',
     progress: play(
       { type: 'open', id: puzzle, at: at(0) },
       { type: 'skip', id: puzzle, at: at(5) },
@@ -40,7 +40,7 @@ export const DEMO_GROUPS: { name: string; progress: Progress }[] = [
     ),
   },
   {
-    name: 'Eiche',
+    name: 'Beispiel Eiche',
     progress: play({ type: 'open', id: puzzle, at: at(0) }, { type: 'hint', id: puzzle, index: 0, at: at(2) }),
   },
 ]

@@ -26,8 +26,12 @@ export function App() {
   const [error, setError] = useState<string>()
   const [settings, setSettings] = useState<Settings>(DEFAULTS)
   const [purgeError, setPurgeError] = useState(false)
+  const [startCode, setStartCode] = useState<string>()
 
   useEffect(() => {
+    const code = new URLSearchParams(location.search).get('start')
+    // Dropped from the address in any case, so a reload or a later start screen cannot start the group again.
+    if (code !== null) history.replaceState(null, '', location.pathname)
     // A failed retention check must not lock the group out of its game; it is reported instead.
     purgeExpired(Date.now())
       .catch(() => setPurgeError(true))
@@ -36,6 +40,8 @@ export function App() {
         ([stored, last, storedSettings]) => {
           setSettings({ ...DEFAULTS, ...storedSettings })
           setGroup(stored)
+          if (code !== null && stored) setError(`Auf diesem Gerät spielt schon die Gruppe ${stored.name}. Der Startcode ${code} wurde nicht verwendet.`)
+          else if (code !== null) setStartCode(code)
           // The stored name may be from a version with other screens.
           setScreen(!stored ? 'start' : last && Object.hasOwn(screens, last) ? (last as Screen) : 'roles')
         },
@@ -50,6 +56,7 @@ export function App() {
   }, [settings])
 
   function go(next: Screen) {
+    setStartCode(undefined)
     setScreen(next)
     focusHeading()
     save(SCREEN_KEY, next).catch(() => setError('Die aktuelle Ansicht konnte nicht gespeichert werden.'))
@@ -69,7 +76,7 @@ export function App() {
       </header>
       <main>
         {error && <p role="alert">{error}</p>}
-        {Current && <Current go={go} group={group} setGroup={setGroup} />}
+        {Current && <Current go={go} group={group} setGroup={setGroup} startCode={startCode} />}
         <p class="note">Alle Inhalte sind erfundene Beispiele. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>
       </main>
     </SettingsContext.Provider>
