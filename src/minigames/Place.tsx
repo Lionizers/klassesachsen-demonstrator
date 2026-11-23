@@ -6,6 +6,7 @@ import { load, save } from '../store/db'
 import { ItemImage, ItemProgress } from '../collection/ItemArt'
 import { collected } from '../collection/items'
 import { Fidelius } from '../fidelius'
+import { DemoHelp } from '../demo/DemoHelp'
 import { ReadAloud, SettingsContext, playSuccessTone, text } from '../settings'
 import { ASK_FOR_HELP, GUIDE_NAME, PLACE_NAME, PLACE_WELCOME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle, type Text } from './model'
@@ -17,9 +18,9 @@ const PLACE_LABEL = { new: 'Noch nicht begonnen.', started: 'Angefangen.', done:
 type Apply = (...actions: ProgressAction[]) => void
 type Result = { game: Minigame; consequence?: Text }
 
-type Props = { group: Group | undefined; onBack: () => void }
+type Props = { group: Group | undefined; onBack: () => void; onCollage: () => void }
 
-export function Place({ group, onBack }: Props) {
+export function Place({ group, onBack, onCollage }: Props) {
   const settings = useContext(SettingsContext)
   const { easy } = settings
   const [progress, setProgress] = useState<Progress>()
@@ -140,6 +141,21 @@ export function Place({ group, onBack }: Props) {
           )
         })}
       </ul>
+      {state !== 'done' && (
+        <DemoHelp>
+          <button
+            type="button"
+            onClick={() => {
+              const next = reduceProgress(progress, { type: 'demo-solve', ids: GAMES.map((g) => g.id), at: Date.now() })
+              setProgress(next)
+              // Only once stored, or the collection would load the stations still open.
+              save(MINIGAMES_KEY, next).then(onCollage, () => setError('Der Spielstand konnte nicht gespeichert werden.'))
+            }}
+          >
+            Restliche Stationen als gelöst markieren
+          </button>
+        </DemoHelp>
+      )}
       {back}
     </section>
   )

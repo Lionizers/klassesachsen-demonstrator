@@ -3,7 +3,7 @@ import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import { MINIGAMES_KEY, type Progress, type StationStatus } from '../src/minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../src/collage/layout'
 import { FAIL_PUT, failPut } from './fail-put'
-import { api, axeClean, heading, readStored, writeStored } from './helpers'
+import { api, axeClean, heading, openStart, readStored, writeStored } from './helpers'
 
 const names = burgFunkelfels.map((g) => g.reward.standard)
 const LOCKED = `Die Collage öffnet sich, wenn ihr alle Stationen bei ${PLACE_NAME} geschafft habt.`
@@ -15,7 +15,7 @@ const saved = (page: Page) => collage(page).getByRole('status')
 
 /** Group screen, then `status` for the first station and done for the rest, then the collection. */
 async function openCollage(page: Page, first: StationStatus = 'done', easy = false) {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(heading(page, 'Gruppe Otter')).toBeFocused()
   if (easy) {
@@ -61,7 +61,7 @@ const release = (page: Page) =>
   writeStored(page, CONTRIBUTIONS_KEY, (list: Contribution[] | undefined) => list!.map((c) => ({ ...c, released: true })))
 
 test('AE1: before every station is done the collage is locked with an explanation', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await page.getByRole('button', { name: 'Sammlung', exact: true }).click()
   await expect(heading(page, 'Sammlung')).toBeFocused()

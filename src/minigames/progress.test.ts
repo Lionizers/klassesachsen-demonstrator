@@ -101,3 +101,16 @@ describe('progress', () => {
     for (const role of ROLES) expect(json).not.toContain(role)
   })
 })
+
+describe('demo-solve', () => {
+  it('AE5: marks the open stations done with a D1 event each and leaves finished ones alone', () => {
+
+    const played = reduceProgress(initialProgress(burgFunkelfels), { type: 'attempt', id: first, correct: true, at: 1 })
+    const next = reduceProgress(played, { type: 'demo-solve', ids: [first, second, third], at: 2 })
+    expect(Object.values(next.status)).toEqual(['done', 'done', 'done'])
+    expect(next.events.slice(played.events.length)).toEqual([
+      { code: 'D1', minigameId: second, at: 2 },
+      { code: 'D1', minigameId: third, at: 2 },
+    ])
+  })
+})

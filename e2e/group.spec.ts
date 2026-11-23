@@ -1,10 +1,10 @@
 import { test, expect } from '@playwright/test'
 import { GROUP_KEY } from '../src/group'
 import { FAIL_PUT, failPut } from './fail-put'
-import { axeClean, readKey } from './helpers'
+import { axeClean, openStart, readKey } from './helpers'
 
 test('AE1/AE3: picking a suggested name creates the group and shows the roles', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await expect(page.getByRole('list', { name: 'Vorschläge' }).getByRole('button')).toHaveCount(12)
   await axeClean(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
@@ -16,7 +16,7 @@ test('AE1/AE3: picking a suggested name creates the group and shows the roles', 
 })
 
 test('AE2: free name entry warns against children names before saving', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await expect(page.getByText('Bitte keine Namen von Kindern verwenden')).toBeVisible()
   await page.getByLabel('Eigener Gruppenname').fill('Sternschnuppen')
   await page.getByRole('button', { name: 'Gruppe anlegen' }).click()
@@ -24,14 +24,14 @@ test('AE2: free name entry warns against children names before saving', async ({
 })
 
 test('AE5: whitespace-only name cannot be saved and is explained', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByLabel('Eigener Gruppenname').fill('   ')
   await expect(page.getByRole('button', { name: 'Gruppe anlegen' })).toBeDisabled()
   await expect(page.getByText('Bitte einen Gruppennamen eingeben.')).toBeVisible()
 })
 
 test('AE4/AE6: roles rotate, and group and round survive a reload', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await page.getByRole('button', { name: 'Neue Runde' }).click()
   const roles = page.getByRole('list', { name: 'Rollen in dieser Runde' }).getByRole('listitem')
@@ -42,14 +42,14 @@ test('AE4/AE6: roles rotate, and group and round survive a reload', async ({ pag
 })
 
 test('AE7: stored data holds only the group name, the round and the creation time', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
   expect(await readKey(page, GROUP_KEY)).toEqual({ name: 'Otter', round: 0, createdAt: expect.any(Number) })
 })
 
 test('AE5: empty name field explains why saving is blocked', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await expect(page.getByRole('button', { name: 'Gruppe anlegen' })).toBeDisabled()
   await expect(page.getByText('Bitte einen Gruppennamen eingeben.')).toBeVisible()
 })
@@ -64,16 +64,20 @@ test('storage unavailable: the app says so instead of staying blank', async ({ p
 
 test('saving fails: the group start shows an error instead of failing silently', async ({ page }) => {
   await page.addInitScript(() => {
-    IDBObjectStore.prototype.put = () => { throw new Error('quota') }
+    const put = IDBObjectStore.prototype.put
+    IDBObjectStore.prototype.put = function (value, key) {
+      if (key === 'group') throw new Error('quota')
+      return put.call(this, value, key)
+    }
   })
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('alert')).toHaveText('Die Gruppe konnte nicht gespeichert werden.')
 })
 
 test('saving the next round fails: the roles screen shows an error', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
   await failPut(page)
@@ -82,19 +86,19 @@ test('saving the next round fails: the roles screen shows an error', async ({ pa
 })
 
 test('focus moves to the new screen heading after choosing a name', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeFocused()
 })
 
 test('round changes are announced to screen readers', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByText(/^Runde 1\./)).toHaveAttribute('aria-live', 'polite')
 })
 
 test('quest AE6: the group screen leads only to the map, not directly to a place', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('button', { name: 'Zur Karte' })).toBeVisible()
   await expect(page.getByRole('button', { name: /erkunden/ })).toHaveCount(0)

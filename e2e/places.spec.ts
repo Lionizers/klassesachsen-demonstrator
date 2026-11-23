@@ -3,7 +3,7 @@ import QRCode from 'qrcode'
 import { EARTH_RADIUS_M } from '../src/places/geo'
 import { PLACES } from '../src/places/places'
 import { FAIL_PUT, failPut } from './fail-put'
-import { axeClean, dumpStore, openMapFromGroup } from './helpers'
+import { axeClean, dumpStore, openMapFromGroup, openStart } from './helpers'
 
 const funkelfels = PLACES.find((p) => p.id === 'funkelfels')!
 const northOf = (m: number) => ({
@@ -43,7 +43,7 @@ async function fakeCamera(page: Page, opts: { reject?: string; qrImage?: string;
 }
 
 async function openMap(page: Page) {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await openMapFromGroup(page)
 }

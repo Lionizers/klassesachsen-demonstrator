@@ -91,7 +91,8 @@ export function indicators(progress: Progress, games: Minigame[]) {
   const of = (code: GameEvent['code'], value?: string) => events.filter((e) => e.code === code && (value === undefined || e.value === value))
   const facts: Facts = {
     stations: games.length,
-    done: collected(games, initialProgress(games, progress)).length,
+    // A station the demo help marked as solved is not the group's work.
+    done: collected(games, initialProgress(games, progress)).filter((g) => !of('D1').some((e) => e.minigameId === g.id)).length,
     skipped: of('E2', 'skipped').length,
     hints: of('E5').length,
     retries: of('E3').filter((e) => Number(e.value) > 1).length,

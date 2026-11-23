@@ -9,7 +9,7 @@ import { SettingsContext, text } from '../settings'
 import { Collage } from '../collage/Collage'
 import type { ScreenProps } from './types'
 
-export function Collection({ go }: ScreenProps) {
+export function Collection({ go, anchor }: ScreenProps) {
   const { easy } = useContext(SettingsContext)
   const [items, setItems] = useState<Minigame[]>()
   const [worn, setWorn] = useState<string[]>([])
@@ -26,6 +26,11 @@ export function Collection({ go }: ScreenProps) {
       () => setError('Die Sammlung konnte nicht geladen werden.'),
     )
   }, [])
+
+  useEffect(() => {
+    // Arriving for the collage: once the collection is there, the focus goes to it instead of the heading.
+    if (anchor === 'collage' && (items || error)) requestAnimationFrame(() => (document.getElementById('collage-title') ?? document.querySelector<HTMLElement>('main h2'))?.focus())
+  }, [items, error])
 
   const toggle = (id: string) => {
     const next = worn.includes(id) ? worn.filter((w) => w !== id) : [...worn, id]

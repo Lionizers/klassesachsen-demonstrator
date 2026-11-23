@@ -12,9 +12,10 @@ export type StationStatus = 'open' | 'skipped' | 'done'
  * E4 chosen option index, E5 hint number, E7 role position (1-3) of one input, E8 none.
  * E10 (last sync time) lives with the sync cursor, see offline.tsx.
  * E6 and E9 are not stored: no minigame shows a change of approach, and active time follows from the E1 pair.
+ * D1 is no game event: the demo help marked the station as solved, so it never counts as the group's work.
  */
 export type GameEvent = {
-  code: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E7' | 'E8'
+  code: 'E1' | 'E2' | 'E3' | 'E4' | 'E5' | 'E7' | 'E8' | 'D1'
   minigameId: string
   at: number
   value?: string | number
@@ -29,6 +30,7 @@ export type ProgressAction =
   | { type: 'vote'; id: string; position: number; at: number }
   | { type: 'decide'; id: string; option: 0 | 1; at: number }
   | { type: 'skip'; id: string; at: number }
+  | { type: 'demo-solve'; ids: string[]; at: number }
 
 /** Aligns a stored state with the current stations: stations added since are open, removed ones are dropped. */
 export function initialProgress(games: Minigame[], stored?: Progress): Progress {
@@ -43,6 +45,13 @@ export function countEvents(progress: Progress, code: GameEvent['code'], minigam
 }
 
 export function reduceProgress(state: Progress, action: ProgressAction): Progress {
+  if (action.type === 'demo-solve') {
+    const open = action.ids.filter((id) => state.status[id] !== 'done')
+    return {
+      status: { ...state.status, ...Object.fromEntries(open.map((id) => [id, 'done'])) },
+      events: [...state.events, ...open.map((minigameId): GameEvent => ({ code: 'D1', minigameId, at: action.at }))],
+    }
+  }
   const { id: minigameId, at } = action
   const event = (code: GameEvent['code'], value?: string | number): GameEvent =>
     value === undefined ? { code, minigameId, at } : { code, minigameId, at, value }

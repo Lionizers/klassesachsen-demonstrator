@@ -43,7 +43,7 @@ h3 { font-size: 1.2rem; margin: 1.25rem 0 0.5rem; }
 .site-header h1 span { display: block; font-size: 0.8rem; font-weight: 400; }
 .offline-badge { margin: 0; display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.9rem; font-weight: 600; }
 .menu { display: flex; flex-wrap: wrap; gap: 0.4rem; justify-content: flex-end; }
-.menu > button { background: transparent; color: #fff; border-color: #fff; display: inline-flex; align-items: center; gap: 0.35rem; }
+.menu > button { background: transparent; color: #fff; border-color: #fff; display: inline-flex; align-items: center; gap: 0.35rem; padding-inline: 0.7rem; }
 .read-aloud { display: inline-flex; align-items: center; gap: 0.35rem; }
 /* On a phone the menu shows its symbols only; the names stay for screen readers. */
 @media (max-width: 40rem) {
@@ -174,4 +174,19 @@ main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
 @media print {
   .site-header, .site-footer, button, .note { display: none; }
   body, :root { background: #fff; }
+}
+
+/* Demo aids: framed and labelled, so nobody mistakes them for the app. */
+.demo-help { border: var(--edge) dashed var(--accent); border-radius: 1rem; padding: 0.25rem 1rem 0.75rem; margin: 1.25rem 0; background: var(--card); }
+.demo-label { font-weight: 700; color: var(--accent); margin: 0.5rem 0; }
+.paths { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1rem 0; }
+.checklist { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 0.75rem; }
+.checklist li { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.75rem 1rem; display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+.checklist li.seen { border-color: var(--success); }
+.checklist li.seen .pill { background: var(--leaf); }
+.checklist p { margin: 0; flex: 1; }
+.lv { color: var(--muted); font-size: 0.9rem; }
+.role { font-weight: 600; }
+@media print {
+  .demo-label { display: none; }
 }

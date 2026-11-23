@@ -5,7 +5,7 @@ import { MINIGAMES_KEY, SYNC_KEY, type Progress } from '../src/minigames/progres
 import { DB_NAME, STORE } from '../src/store/db'
 import { PLACE_KEY, SCREEN_KEY } from '../src/screens/types'
 import { FAIL_PUT, failPut } from './fail-put'
-import { heading, leaveToGroup, openMapFromGroup, readKey, reachPlaceFromGroup } from './helpers'
+import { heading, leaveToGroup, openMapFromGroup, openStart, reachPlaceFromGroup, readKey } from './helpers'
 
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'estimate')!
@@ -17,13 +17,13 @@ const SYNCED = /^Offene Ergebnisse: 0 · zuletzt synchronisiert \d{2}\.\d{2}\.\d
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
 
 async function enterPlace(page: Page) {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await reachPlaceFromGroup(page)
 }
 
 test('AE1: the header says ready for offline once everything is cached; the download size is in the technical details', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await expect(ready(page)).toBeVisible()
   await page.getByText('Technik für Prüfer', { exact: true }).click()
   const size = page.getByText(/^Download für offline: [\d.]+ kB$/)
@@ -36,7 +36,7 @@ test.describe('without a service worker', () => {
   test.use({ serviceWorkers: 'block' })
 
   test('AE1: the header keeps saying it is loading, never ready', async ({ page }) => {
-    await page.goto('/')
+    await openStart(page)
     await expect(page.getByText('Offline-Vorbereitung lädt …')).toBeVisible()
     // Caching takes well under a second on localhost; a ready claim would show up by then.
     await page.waitForTimeout(1000)
@@ -45,7 +45,7 @@ test.describe('without a service worker', () => {
 })
 
 test('AE2/AE4/AE5: offline the map and all three minigames work, results queue up and sync when back online', async ({ page, context }) => {
-  await page.goto('/')
+  await openStart(page)
   await expect(ready(page)).toBeVisible()
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
@@ -107,7 +107,7 @@ test('AE3: after closing and reopening the tab the group is back on the same vie
 })
 
 test('AE3: a reopened place the group has not reached yet still asks for its check', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await openMapFromGroup(page)
   await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) }).click()
@@ -121,7 +121,7 @@ test('AE3: a reopened place the group has not reached yet still asks for its che
 
 test('AE6: storage persistence refused: "Technik für Prüfer" asks to install the app, also while its details are closed', async ({ page }) => {
   await page.addInitScript(() => { StorageManager.prototype.persist = async () => false })
-  await page.goto('/')
+  await openStart(page)
   const tech = page.getByRole('region', { name: 'Technik für Prüfer' })
   await expect(tech.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
   await expect(tech.locator('details')).not.toHaveAttribute('open')
@@ -135,7 +135,7 @@ test('AE6: storage persistence granted: no install hint', async ({ page }) => {
       return true
     }
   })
-  await page.goto('/')
+  await openStart(page)
   await expect.poll(() => page.evaluate(() => (window as unknown as { persistCalls: number }).persistCalls)).toBe(1)
   await expect(page.getByText(/Home-Bildschirm/)).toHaveCount(0)
 })
@@ -157,7 +157,7 @@ test('AE7: a failed sync keeps the results queued and says so; the next sync emp
 })
 
 test('AE3: a stored screen this version does not know falls back to the group view', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
   await page.evaluate(([db, store, key]) => new Promise((resolve) => {
@@ -173,7 +173,7 @@ test('AE3: a stored screen this version does not know falls back to the group vi
 
 test('saving the open place fails: the place view says so', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await openMapFromGroup(page)
   await failPut(page, PLACE_KEY)
@@ -184,7 +184,7 @@ test('saving the open place fails: the place view says so', async ({ page }) => 
 
 test('saving the current screen fails: the app says so', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(heading(page, 'Gruppe Otter')).toBeFocused()
   await failPut(page, SCREEN_KEY)
@@ -200,7 +200,7 @@ test('the sync queue cannot be read: the header says so', async ({ page }) => {
       return get.apply(this, arguments)
     }
   `)
-  await page.goto('/')
+  await openStart(page)
   await expect(page.getByRole('alert')).toHaveText('Die offenen Ergebnisse konnten nicht gelesen werden.')
 })
 
@@ -211,7 +211,7 @@ test('the offline cache cannot be measured and persist() fails: calm messages, n
     CacheStorage.prototype.keys = async () => { throw new DOMException('cache gone', 'SecurityError') }
     StorageManager.prototype.persist = async () => { throw new DOMException('no answer', 'InvalidStateError') }
   })
-  await page.goto('/')
+  await openStart(page)
   await expect(page.getByRole('status').filter({ hasText: 'Der Offline-Speicher konnte nicht geprüft werden.' })).toBeVisible()
   await expect(page.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
   expect(errors).toEqual([])

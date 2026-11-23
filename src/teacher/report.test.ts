@@ -153,3 +153,10 @@ describe('demo groups', () => {
     expect(new Set(levels).size).toBe(DEMO_GROUPS.length)
   })
 })
+
+describe('stations marked by the demo help', () => {
+  it('AE5: do not count as done for the indicators', () => {
+    const progress = reduceProgress(initialProgress(GAMES), { type: 'demo-solve', ids: GAMES.map((g) => g.id), at: 1 })
+    expect(indicators(progress, GAMES).map((i) => i.level)).toEqual([1, 1, 1])
+  })
+})

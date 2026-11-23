@@ -42,7 +42,7 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
   }, [selected, settings])
   useEffect(() => () => download && URL.revokeObjectURL(download), [download])
 
-  const title = <h3 id="collage-title">Collage</h3>
+  const title = <h3 id="collage-title" tabIndex={-1}>Collage</h3>
   if (!unlocked) {
     return (
       <section aria-labelledby="collage-title">

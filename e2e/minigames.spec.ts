@@ -4,7 +4,7 @@ import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
 import { MINIGAMES_KEY, type Progress } from '../src/minigames/progress'
 import { FAIL_PUT, failPut } from './fail-put'
 import { PROGRESS_KEY } from '../src/places/progress'
-import { axeClean, backToMap, heading, readKey, reachPlaceFromGroup } from './helpers'
+import { axeClean, backToMap, heading, openStart, reachPlaceFromGroup, readKey } from './helpers'
 
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'estimate')!
@@ -13,7 +13,7 @@ const dilemma = burgFunkelfels.find((g): g is Dilemma => g.kind === 'dilemma')!
 const mapButton = (page: Page) => page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) })
 
 async function enterPlace(page: Page) {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await reachPlaceFromGroup(page)
 }
