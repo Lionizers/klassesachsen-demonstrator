@@ -4,6 +4,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
 import { FAIL_PUT, failPut } from './fail-put'
+import { heading, openMapFromGroup, reachPlaceFromGroup } from './helpers'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
@@ -43,7 +44,6 @@ const recorded = (page: Page) => page.evaluate(() => {
 const spoken = (page: Page) => page.evaluate(() => (window as unknown as Recorded).spoken)
 const tones = (page: Page) => page.evaluate(() => (window as unknown as Recorded).tones)
 
-const heading = (page: Page, name: string) => page.getByRole('heading', { name, exact: true })
 
 async function openSettings(page: Page) {
   await page.getByText('Einstellungen', { exact: true }).click()
@@ -53,11 +53,6 @@ async function startGroup(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(heading(page, 'Gruppe Otter')).toBeFocused()
-}
-
-async function toMap(page: Page) {
-  await page.getByRole('button', { name: 'Zur Karte' }).click()
-  await expect(heading(page, 'Karte der Spielregion')).toBeFocused()
 }
 
 /** Opens a place on the map and checks in by code; waits for each heading focus so typing is not raced. */
@@ -73,12 +68,6 @@ async function reachStations(page: Page) {
   await checkIn(page, PLACE_NAME, 'FUNKELFELS')
   await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
   await expect(heading(page, PLACE_NAME)).toBeFocused()
-}
-
-/** From the group view to the stations. */
-async function enterPlace(page: Page) {
-  await toMap(page)
-  await reachStations(page)
 }
 
 async function backToMap(page: Page) {
@@ -125,7 +114,7 @@ test('AE3: easy language switches the minigame texts and survives a reload', asy
   await startGroup(page)
   await openSettings(page)
   await page.getByLabel('Einfache Sprache').check()
-  await enterPlace(page)
+  await reachPlaceFromGroup(page)
   await page.getByRole('button', { name: puzzle.title.easy }).click()
   await expect(heading(page, puzzle.title.easy)).toBeFocused()
   await expect(page.getByText(puzzle.prompt.easy)).toBeVisible()
@@ -144,7 +133,7 @@ test('AE3: easy language also names the earned item, on the result and in the co
   await startGroup(page)
   await openSettings(page)
   await page.getByLabel('Einfache Sprache').check()
-  await enterPlace(page)
+  await reachPlaceFromGroup(page)
   await solveEstimate(page, 'easy')
   await expect(page.getByText(`Du erhältst: ${estimate.reward.easy}`)).toBeVisible()
   await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
@@ -167,7 +156,7 @@ test('AE4: high contrast gives text at least 7:1 on place, station and result', 
   await openSettings(page)
   await page.getByLabel('Hoher Kontrast').check()
   await enhanced()
-  await toMap(page)
+  await openMapFromGroup(page)
   await enhanced()
   // A place without minigames keeps the success message, whose colour has its own high-contrast value.
   await checkIn(page, 'Kloster Krümelbach', 'KRUEMELBACH')
@@ -191,7 +180,7 @@ const durationOf = (page: Page, selector: string) =>
 
 test('AE5: slow game tempo doubles the animation time', async ({ page }) => {
   await startGroup(page)
-  await enterPlace(page)
+  await reachPlaceFromGroup(page)
   await solveEstimate(page)
   const normal = { view: await durationOf(page, 'main > section'), item: await durationOf(page, '.earned') }
   expect(normal.view.name).not.toBe('none')
@@ -205,7 +194,7 @@ test('AE5: slow game tempo doubles the animation time', async ({ page }) => {
 test('AE5: reduced motion switches the animations off', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' })
   await startGroup(page)
-  await enterPlace(page)
+  await reachPlaceFromGroup(page)
   await solveEstimate(page)
   expect((await durationOf(page, 'main > section')).name).toBe('none')
   expect((await durationOf(page, '.earned')).name).toBe('none')
@@ -214,7 +203,7 @@ test('AE5: reduced motion switches the animations off', async ({ page }) => {
 test('AE6: an earned item plays one tone', async ({ page }) => {
   await recordOutput(page)
   await startGroup(page)
-  await enterPlace(page)
+  await reachPlaceFromGroup(page)
   await solveEstimate(page)
   expect(await tones(page)).toHaveLength(1)
 })
@@ -224,7 +213,7 @@ test('AE6: sound off plays no tone, reading aloud still works', async ({ page })
   await startGroup(page)
   await openSettings(page)
   await page.getByLabel('Ton', { exact: true }).uncheck()
-  await enterPlace(page)
+  await reachPlaceFromGroup(page)
   await solveEstimate(page)
   await page.getByRole('button', { name: 'Vorlesen' }).click()
   const { spoken, tones } = await recorded(page)
@@ -309,7 +298,7 @@ test('AE9: every view has no WCAG 2.1 A/AA violations; the reports are kept', as
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(heading(page, 'Gruppe Otter')).toBeFocused()
   await check('group')
-  await toMap(page)
+  await openMapFromGroup(page)
   await check('map')
   await checkIn(page, 'Kloster Krümelbach', 'KRUEMELBACH')
   await expect(page.getByText('Station erreicht!')).toBeVisible()
