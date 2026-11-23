@@ -17,3 +17,6 @@ export type ScreenProps = {
   openSettings: () => void
 }
 export type Anchor = 'collage'
+
+/** Where playing continues: the group's own screen, or the start of a new group. */
+export const playScreen = (group: Group | undefined): Screen => (group ? 'roles' : 'start')

@@ -79,6 +79,11 @@ export function reduceProgress(state: Progress, action: ProgressAction): Progres
   }
 }
 
+/** Stations the demo help marked as solved; they were never played. */
+export function demoSolvedIds(progress: Progress): Set<string> {
+  return new Set(progress.events.filter((e) => e.code === 'D1').map((e) => e.minigameId))
+}
+
 export function placeState(progress: Progress): 'new' | 'started' | 'done' {
   if (Object.values(progress.status).every((s) => s === 'done')) return 'done'
   return progress.events.length > 0 ? 'started' : 'new'

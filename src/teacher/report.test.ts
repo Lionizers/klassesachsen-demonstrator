@@ -160,3 +160,12 @@ describe('stations marked by the demo help', () => {
     expect(indicators(progress, GAMES).map((i) => i.level)).toEqual([1, 1, 1])
   })
 })
+
+describe('retention after the demo help', () => {
+  it('a quest finished by the demo help counts from that moment', () => {
+    const DAY = 24 * 60 * MIN
+    const progress = [...station(a, 0), { type: 'demo-solve', ids: GAMES.map((g) => g.id), at: 80 * DAY } as const].reduce(reduceProgress, initialProgress(GAMES))
+    expect(questCompletedAt(progress, GAMES)).toBe(80 * DAY)
+    expect(isExpired(0, progress, GAMES, 85 * DAY)).toBe(false)
+  })
+})

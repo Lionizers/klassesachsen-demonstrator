@@ -117,7 +117,8 @@ export function App() {
       <main>
         {error && <p role="alert">{error}</p>}
         {Current && <Current go={go} group={group} setGroup={setGroup} startCode={startCode} anchor={anchor} openSettings={() => setSettingsOpen(true)} />}
-        <p class="note">Alle Inhalte sind erfundene Beispiele. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>
+        {/* The welcome page says it at the top already. */}
+        {screen !== 'welcome' && <p class="note">Alle Inhalte sind erfundene Beispiele. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>}
       </main>
       <footer class="site-footer">
         <TechPanel {...offline} />

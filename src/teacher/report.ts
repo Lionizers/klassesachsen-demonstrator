@@ -1,5 +1,5 @@
 import type { Minigame } from '../minigames/model'
-import { initialProgress, placeState, type GameEvent, type Progress } from '../minigames/progress'
+import { demoSolvedIds, initialProgress, placeState, type GameEvent, type Progress } from '../minigames/progress'
 import { collected } from '../collection/items'
 
 export const LEVELS = ['Einblick gewinnen', 'Kennen', 'Anwenden', 'Beurteilen/Sich positionieren', 'Gestalten'] as const
@@ -92,7 +92,7 @@ export function indicators(progress: Progress, games: Minigame[]) {
   const facts: Facts = {
     stations: games.length,
     // A station the demo help marked as solved is not the group's work.
-    done: collected(games, initialProgress(games, progress)).filter((g) => !of('D1').some((e) => e.minigameId === g.id)).length,
+    done: collected(games, initialProgress(games, progress)).filter((g) => !demoSolvedIds(progress).has(g.id)).length,
     skipped: of('E2', 'skipped').length,
     hints: of('E5').length,
     retries: of('E3').filter((e) => Number(e.value) > 1).length,
@@ -106,11 +106,11 @@ export function indicators(progress: Progress, games: Minigame[]) {
   })
 }
 
-/** The time of the event that finished the last open station, once every station is done. */
+/** The time of the event that finished the last open station, once every station is done; a demo-help mark finishes too. */
 export function questCompletedAt(progress: Progress, games: Minigame[]): number | undefined {
   const state = initialProgress(games, progress)
   if (placeState(state) !== 'done') return undefined
-  const finished = state.events.filter((e) => e.code === 'E2' && e.value === 'done').map((e) => e.at)
+  const finished = state.events.filter((e) => e.code === 'D1' || (e.code === 'E2' && e.value === 'done')).map((e) => e.at)
   return finished.length ? Math.max(...finished) : undefined
 }
 

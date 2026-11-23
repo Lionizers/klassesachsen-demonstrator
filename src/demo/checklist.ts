@@ -8,10 +8,19 @@ export const CHECKLIST_KEY = 'checklist'
 export type Mark = 'offline' | 'teacher'
 export type Marks = { seen: Mark[] }
 
-/** Notes a mark once; rejects when it could not be stored, so the caller can say so. */
-export async function markSeen(mark: Mark): Promise<void> {
-  const seen = (await load<Marks>(CHECKLIST_KEY))?.seen ?? []
-  if (!seen.includes(mark)) await save(CHECKLIST_KEY, { seen: [...seen, mark] } satisfies Marks)
+let pending: Promise<void> = Promise.resolve()
+
+/**
+ * Notes a mark once; rejects when it could not be stored, so the caller can say so.
+ * Marks run one after another: two overlapping read-and-write rounds would drop one of them.
+ */
+export function markSeen(mark: Mark): Promise<void> {
+  const run = pending.catch(() => {}).then(async () => {
+    const seen = (await load<Marks>(CHECKLIST_KEY))?.seen ?? []
+    if (!seen.includes(mark)) await save(CHECKLIST_KEY, { seen: [...seen, mark] } satisfies Marks)
+  })
+  pending = run
+  return run
 }
 
 export type CheckId = 'offline' | 'order' | 'minigames' | 'contribution' | 'accessibility' | 'privacy' | 'dashboard' | 'interface'
@@ -58,16 +67,17 @@ export type Facts = {
 /** Derived from what is stored anyway, so a reload shows the same ticks without a list of its own. */
 export function experienced(f: Facts): Set<CheckId> {
   const events = f.progress?.events ?? []
-  const checks: [CheckId, boolean][] = [
-    ['offline', f.marks.includes('offline')],
-    ['order', f.placesReached >= 2 || choseOwnOrder(f.games, f.progress)],
+  // A record, so a check without a rule fails to compile instead of never ticking.
+  const checks: Record<CheckId, boolean> = {
+    offline: f.marks.includes('offline'),
+    order: f.placesReached >= 2 || choseOwnOrder(f.games, f.progress),
     // Only a played station counts; one marked as solved by the demo help has no E2.
-    ['minigames', events.some((e) => e.code === 'E2' && e.value === 'done')],
-    ['contribution', f.contributions.length > 0],
-    ['accessibility', f.settingsChanged],
-    ['privacy', f.hasGroup],
-    ['dashboard', f.marks.includes('teacher')],
-    ['interface', f.contributions.some((c) => c.released)],
-  ]
-  return new Set(checks.filter(([, ok]) => ok).map(([id]) => id))
+    minigames: events.some((e) => e.code === 'E2' && e.value === 'done'),
+    contribution: f.contributions.length > 0,
+    accessibility: f.settingsChanged,
+    privacy: f.hasGroup,
+    dashboard: f.marks.includes('teacher'),
+    interface: f.contributions.some((c) => c.released),
+  }
+  return new Set((Object.keys(checks) as CheckId[]).filter((id) => checks[id]))
 }

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'preact/hooks'
+import { useContext, useEffect, useRef, useState } from 'preact/hooks'
 import { load, save } from '../store/db'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
 import type { Minigame } from '../minigames/model'
@@ -7,6 +7,7 @@ import { CHARACTER_KEY, collected, wornOf, type Character } from '../collection/
 import { ArtPaths, BODY, CHARACTER_VIEWBOX, ItemImage, ItemProgress } from '../collection/ItemArt'
 import { SettingsContext, text } from '../settings'
 import { Collage } from '../collage/Collage'
+import { focusHeading } from '../focus'
 import type { ScreenProps } from './types'
 
 export function Collection({ go, anchor }: ScreenProps) {
@@ -27,9 +28,12 @@ export function Collection({ go, anchor }: ScreenProps) {
     )
   }, [])
 
+  const arrived = useRef(false)
   useEffect(() => {
-    // Arriving for the collage: once the collection is there, the focus goes to it instead of the heading.
-    if (anchor === 'collage' && (items || error)) requestAnimationFrame(() => (document.getElementById('collage-title') ?? document.querySelector<HTMLElement>('main h2'))?.focus())
+    // Arriving for the collage: once the collection is there, the focus goes to it instead of the heading, once only.
+    if (anchor !== 'collage' || arrived.current || !(items || error)) return
+    arrived.current = true
+    focusHeading('#collage-title')
   }, [items, error])
 
   const toggle = (id: string) => {

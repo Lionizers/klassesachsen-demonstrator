@@ -4,12 +4,12 @@ import { load, removeAllExcept, save } from '../store/db'
 import { focusHeading } from '../focus'
 import { SETTINGS_KEY } from '../settings'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
-import { MINIGAMES_KEY, initialProgress, placeState, type Progress } from '../minigames/progress'
+import { MINIGAMES_KEY, demoSolvedIds, initialProgress, placeState, type Progress } from '../minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../collage/layout'
 import { DEMO_GROUPS } from '../teacher/demo'
 import { INDICATORS, LEVELS, RETENTION_WEEKS, indicators, isExpired } from '../teacher/report'
 import { useQrCodes } from '../qr-codes'
-import type { ScreenProps } from './types'
+import { playScreen, type ScreenProps } from './types'
 
 /** Only suggested names: the class list can never hold a child's name. */
 export const CLASS_KEY = 'class'
@@ -99,7 +99,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
   const back = (target: View, label: string) => <button type="button" onClick={() => show(target)}>{label}</button>
 
   let content
-  const backToApp = <button type="button" onClick={() => go(group ? 'roles' : 'start')}>Zurück zur App</button>
+  const backToApp = <button type="button" onClick={() => go(playScreen(group))}>Zurück zur App</button>
   const backToWelcome = <button type="button" onClick={() => go('welcome')}>Zurück zur Willkommensseite</button>
   if (!data) {
     content = (
@@ -160,8 +160,8 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
       </>
     )
   } else if (row?.progress && view.kind === 'group') {
-    const { events } = row.progress
-    const demoSolved = GAMES.filter((g) => events.some((e) => e.code === 'D1' && e.minigameId === g.id))
+    const demoIds = demoSolvedIds(row.progress)
+    const demoSolved = GAMES.filter((g) => demoIds.has(g.id))
     content = (
       <>
         <h2 tabIndex={-1}>Gruppenansicht {row.name}</h2>
@@ -219,7 +219,8 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
                 {r.demo && <> · <span class="demo">{DEMO}</span></>}
                 {p ? (
                   <>
-                    <br />Station: {station} · Status: {STATUS[placeState(p)]}{' '}
+                    <br />Station: {station} · Status: {STATUS[placeState(p)]}
+                    {demoSolvedIds(p).size > 0 && ' · teils per Demo-Hilfe gelöst'}{' '}
                     {back({ kind: 'group', name: r.name }, `${r.name} ansehen`)}
                   </>
                 ) : (
