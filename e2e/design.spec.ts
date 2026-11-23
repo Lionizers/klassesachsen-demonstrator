@@ -363,3 +363,28 @@ test.describe('#27 station and teacher view on an iPad', () => {
     await axeClean(page)
   })
 })
+
+test.describe('#27 station on a phone', () => {
+  test.use({ viewport: PHONE })
+
+  test('AE12: every station is one column without sideways scrolling; AE6 holds on the result too', async ({ page }) => {
+    await startGroup(page)
+    await reachPlaceFromGroup(page)
+    for (const game of burgFunkelfels) {
+      await page.getByRole('button', { name: game.title.standard }).click()
+      await expect(heading(page, game.title.standard)).toBeFocused()
+      const { scroll, width } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, width: innerWidth }))
+      expect(scroll, game.title.standard).toBeLessThanOrEqual(width)
+      const columns = await page.locator('.station').evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(' ').length)
+      expect(columns, game.title.standard).toBe(1)
+      await page.getByRole('button', { name: `Zurück zu ${PLACE_NAME}` }).click()
+      await expect(heading(page, PLACE_NAME)).toBeFocused()
+    }
+    await solveEstimate(page)
+    for (const reader of await page.locator('main section button.read-aloud').all()) {
+      await expect(reader).toHaveAccessibleName(/ vorlesen$/)
+      const box = (await reader.boundingBox())!
+      expect([box.width, box.height]).toEqual([48, 48])
+    }
+  })
+})
