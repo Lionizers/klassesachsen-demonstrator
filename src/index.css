@@ -2,6 +2,7 @@
   --ink: #1b1b1f;
   --paper: #ffffff;
   --brand: #1f3a5f;
+  --tempo: 1;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   color: var(--ink);
@@ -16,7 +17,7 @@ main { padding: 1rem 1.25rem; max-width: 48rem; }
 button { font: inherit; padding: 0.6rem 0.9rem; min-height: 44px; border-radius: 0.4rem; border: 2px solid var(--brand); background: #fff; color: var(--brand); cursor: pointer; }
 button[type='submit'], .choices button { background: var(--brand); color: #fff; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
-button:focus-visible, input:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 input { font: inherit; padding: 0.5rem; min-height: 44px; border: 2px solid #555; border-radius: 0.3rem; display: block; margin: 0.25rem 0; width: min(100%, 24rem); }
 label { font-weight: 600; display: block; margin-top: 1rem; }
 .hint { margin: 0.25rem 0; color: #333; }
@@ -38,3 +39,25 @@ label { font-weight: 600; display: block; margin-top: 1rem; }
 button[aria-pressed='true'] { background: var(--brand); color: #fff; }
 .offline-status { margin-top: 0.5rem; font-size: 0.9rem; }
 .offline-status p { margin: 0; }
+
+.read-aloud { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0.25rem 0; }
+.settings { margin-top: 0.5rem; }
+.settings summary { cursor: pointer; padding: 0.5rem 0; min-height: 44px; box-sizing: border-box; }
+.settings label { font-weight: 400; margin-top: 0.5rem; }
+.settings input[type='checkbox'] { display: inline; width: auto; min-height: 0; margin: 0 0.4rem 0 0; }
+.settings select { font: inherit; min-height: 44px; display: block; }
+/* The header is dark: the default dark outline would vanish on it. */
+.site-header :focus-visible { outline-color: #fff; }
+
+:root[data-tempo='slow'] { --tempo: 2; }
+main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
+.earned { animation: item-in calc(400ms * var(--tempo)) ease-out; }
+/* Motion only, never opacity: a half-faded text would fail the contrast checks while it animates. */
+@keyframes view-in { from { transform: translateY(0.5rem); } }
+@keyframes item-in { from { transform: scale(0.6); } }
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { animation: none !important; }
+}
+
+/* Every other text colour already reaches 7:1; only the success green needs a darker shade. */
+:root[data-contrast='high'] .success { color: #1a4d1e; }

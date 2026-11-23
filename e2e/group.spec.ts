@@ -1,15 +1,7 @@
-import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
+import { test, expect } from '@playwright/test'
 import { GROUP_KEY } from '../src/group'
 import { FAIL_PUT, failPut } from './fail-put'
-import { readKey } from './helpers'
-
-const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
-
-async function axeClean(page: Page) {
-  const result = await new AxeBuilder({ page }).withTags(WCAG).analyze()
-  expect(result.violations).toEqual([])
-}
+import { axeClean, readKey } from './helpers'
 
 test('AE1/AE3: picking a suggested name creates the group and shows the roles', async ({ page }) => {
   await page.goto('/')

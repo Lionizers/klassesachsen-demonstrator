@@ -4,6 +4,7 @@ import { GROUP_KEY, type Group } from './group'
 import { load, save } from './store/db'
 import { focusHeading } from './focus'
 import { OfflineStatus } from './offline'
+import { DEFAULTS, ReadAloud, SETTINGS_KEY, SettingsContext, SettingsPanel, type Settings } from './settings'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { PlaceMap } from './screens/PlaceMap'
@@ -21,10 +22,12 @@ export function App() {
   const [screen, setScreen] = useState<Screen | null>(null)
   const [group, setGroup] = useState<Group>()
   const [error, setError] = useState<string>()
+  const [settings, setSettings] = useState<Settings>(DEFAULTS)
 
   useEffect(() => {
-    Promise.all([load<Group>(GROUP_KEY), load<string>(SCREEN_KEY)]).then(
-      ([stored, last]) => {
+    Promise.all([load<Group>(GROUP_KEY), load<string>(SCREEN_KEY), load<Settings>(SETTINGS_KEY)]).then(
+      ([stored, last, storedSettings]) => {
+        setSettings({ ...DEFAULTS, ...storedSettings })
         setGroup(stored)
         // The stored name may be from a version with other screens.
         setScreen(!stored ? 'start' : last && Object.hasOwn(screens, last) ? (last as Screen) : 'roles')
@@ -32,6 +35,12 @@ export function App() {
       () => setError('Der Speicher dieses Geräts ist nicht verfügbar.'),
     )
   }, [])
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.dataset.contrast = settings.contrast ? 'high' : 'normal'
+    root.dataset.tempo = settings.tempo
+  }, [settings])
 
   function go(next: Screen) {
     setScreen(next)
@@ -41,17 +50,19 @@ export function App() {
 
   const Current = screen ? screens[screen] : null
   return (
-    <>
+    <SettingsContext.Provider value={settings}>
       <header class="site-header">
         <h1>Demonstrator der Lionizers GmbH</h1>
         <p>Ortsbasierte Lern- und Entdecker-App für Schulklassen · Web-App, installierbar und offline nutzbar</p>
         <OfflineStatus />
+        <ReadAloud />
+        <SettingsPanel settings={settings} onChange={setSettings} />
       </header>
       <main>
         {error && <p role="alert">{error}</p>}
         {Current && <Current go={go} group={group} setGroup={setGroup} />}
         <p class="note">Alle Inhalte sind erfundene Beispiele. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>
       </main>
-    </>
+    </SettingsContext.Provider>
   )
 }

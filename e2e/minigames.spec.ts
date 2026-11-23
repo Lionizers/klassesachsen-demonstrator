@@ -1,21 +1,14 @@
 import { test, expect, type Page } from '@playwright/test'
-import AxeBuilder from '@axe-core/playwright'
 import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Estimate, Puzzle } from '../src/minigames/model'
 import { MINIGAMES_KEY, type Progress } from '../src/minigames/progress'
 import { FAIL_PUT, failPut } from './fail-put'
 import { PROGRESS_KEY } from '../src/places/progress'
-import { heading, readKey, reachPlaceFromGroup } from './helpers'
+import { axeClean, backToMap, heading, readKey, reachPlaceFromGroup } from './helpers'
 
-const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'estimate')!
 const dilemma = burgFunkelfels.find((g): g is Dilemma => g.kind === 'dilemma')!
-
-async function axeClean(page: Page) {
-  const result = await new AxeBuilder({ page }).withTags(WCAG).analyze()
-  expect(result.violations).toEqual([])
-}
 
 const mapButton = (page: Page) => page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) })
 
@@ -23,11 +16,6 @@ async function enterPlace(page: Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await reachPlaceFromGroup(page)
-}
-
-async function backToMap(page: Page) {
-  await page.getByRole('button', { name: 'Zurück zur Karte' }).click()
-  await expect(heading(page, 'Karte der Spielregion')).toBeVisible()
 }
 
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
