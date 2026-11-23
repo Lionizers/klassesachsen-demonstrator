@@ -457,15 +457,28 @@ test.describe('#29 actions bottom right, airy spacing', () => {
       els.map((li) => {
         const b = li.querySelector('button')!.getBoundingClientRect()
         const box = li.getBoundingClientRect()
-        const pad = parseFloat(getComputedStyle(li).paddingRight) + parseFloat(getComputedStyle(li).borderRightWidth)
-        return { x: box.left, gap: box.right - pad - b.right }
+        const style = getComputedStyle(li)
+        const pad = parseFloat(style.paddingRight) + parseFloat(style.borderRightWidth)
+        const foot = parseFloat(style.paddingBottom) + parseFloat(style.borderBottomWidth)
+        return { x: box.left, top: box.top, gap: box.right - pad - b.right, low: box.bottom - foot - b.bottom, bottom: b.bottom }
       }))
     expect(new Set(cards.map((c) => c.x)).size).toBe(2)
-    for (const c of cards) expect(Math.abs(c.gap)).toBeLessThanOrEqual(1)
+    for (const c of cards) {
+      expect(Math.abs(c.gap)).toBeLessThanOrEqual(1)
+      expect(Math.abs(c.low)).toBeLessThanOrEqual(1)
+    }
+    for (const top of new Set(cards.map((c) => c.top))) expect(new Set(cards.filter((c) => c.top === top).map((c) => c.bottom)).size).toBe(1)
     // Overview row: ways back on the left, the action on the right.
     const overview = await row(page, 'Startcodes drucken')
     expect(overview.names).toEqual(['Zurück zur App', 'Zurück zur Willkommensseite', 'Startcodes drucken'])
     expect(Math.abs(overview.lastRight - overview.right)).toBeLessThanOrEqual(1)
+    await page.getByRole('button', { name: 'Startcodes drucken' }).click()
+    await expect(heading(page, 'Startcodes')).toBeFocused()
+    const codes = await row(page, 'Drucken')
+    expect(codes.names).toEqual(['Zurück zur Übersicht', 'Drucken'])
+    expect(Math.abs(codes.lastRight - codes.right)).toBeLessThanOrEqual(1)
+    await page.getByRole('button', { name: 'Zurück zur Übersicht' }).click()
+    await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
 
     await page.getByRole('button', { name: 'Beispiel Ahorn ansehen' }).click()
     await expect(heading(page, 'Gruppenansicht Beispiel Ahorn')).toBeFocused()
@@ -481,11 +494,19 @@ test.describe('#29 actions bottom right, airy spacing', () => {
     expect(Math.abs(report.lastRight - report.right)).toBeLessThanOrEqual(1)
   })
 
-  test('AE3: on the group screen "Zur Karte" is the action on the right', async ({ page }) => {
+  test('AE3: on the group screen "Zur Karte" and on the QR sheet "Drucken" are the actions on the right', async ({ page }) => {
     await startGroup(page)
     const r = await row(page, 'Zur Karte')
     expect(r.names.at(-1)).toBe('Zur Karte')
     expect(Math.abs(r.lastRight - r.right)).toBeLessThanOrEqual(1)
+    await openMapFromGroup(page)
+    await page.getByRole('button', { name: new RegExp(`^${PLACE_NAME} – `) }).click()
+    await expect(heading(page, PLACE_NAME)).toBeFocused()
+    await page.getByRole('button', { name: 'QR-Blatt der Orte zeigen' }).click()
+    await expect(heading(page, 'QR-Blatt der Orte')).toBeFocused()
+    const sheet = await row(page, 'Drucken')
+    expect(sheet.names).toEqual(['Zurück zum Ort', 'Drucken'])
+    expect(Math.abs(sheet.lastRight - sheet.right)).toBeLessThanOrEqual(1)
   })
 })
 
