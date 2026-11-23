@@ -3,7 +3,7 @@ import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import { CHARACTER_KEY } from '../src/collection/items'
 import { MINIGAMES_KEY } from '../src/minigames/progress'
 import { FAIL_PUT, failPut } from './fail-put'
-import { axeClean, estimate, leaveToGroup, readKey, reachPlaceFromGroup, solveEstimate } from './helpers'
+import { axeClean, estimate, leaveToGroup, openStart, reachPlaceFromGroup, readKey, solveEstimate } from './helpers'
 
 const reward = estimate.reward.standard
 
@@ -19,7 +19,7 @@ async function openCollection(page: Page) {
 
 /** Solves the estimate station from a fresh start and ends on the group screen. */
 async function collectEstimate(page: Page) {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await reachPlaceFromGroup(page)
   await solveEstimate(page)
@@ -36,7 +36,7 @@ test('AE1: the reward announced at the station is the item that appears in the c
 })
 
 test('AE2: on a fresh start every item is open with the condition to earn it', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await openCollection(page)
   await expect(page.getByText('Noch nichts gesammelt.')).toBeVisible()
@@ -120,7 +120,7 @@ test('a failed load is reported instead of an empty collection', async ({ page }
       return get.apply(this, arguments)
     }
   `)
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await openCollection(page)
   await expect(page.getByRole('main').getByRole('alert')).toHaveText('Die Sammlung konnte nicht geladen werden.')

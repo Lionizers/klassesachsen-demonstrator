@@ -60,9 +60,16 @@ export async function reachPlaceFromGroup(page: Page) {
   await reachPlaceFromMap(page)
 }
 
+/** A fresh device: past the welcome page to the group start, whose heading has the focus. */
+export async function openStart(page: Page) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Als Schulgruppe spielen (ca. 5 Minuten)' }).click()
+  await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeFocused()
+}
+
 /** A fresh device: group Otter is created and its screen has the focus. */
 export async function startGroup(page: Page) {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
   await expect(heading(page, 'Gruppe Otter')).toBeFocused()
 }

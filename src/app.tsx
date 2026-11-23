@@ -11,9 +11,12 @@ import { GroupRoles } from './screens/GroupRoles'
 import { PlaceMap } from './screens/PlaceMap'
 import { Collection } from './screens/Collection'
 import { Teacher, purgeExpired } from './screens/Teacher'
-import { SCREEN_KEY, type Screen, type ScreenProps } from './screens/types'
+import { Welcome } from './demo/Welcome'
+import { markSeen, type Mark } from './demo/checklist'
+import { SCREEN_KEY, type Anchor, type Screen, type ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
+  welcome: Welcome,
   start: GroupStart,
   roles: GroupRoles,
   map: PlaceMap,
@@ -30,6 +33,16 @@ export function App() {
   const [startCode, setStartCode] = useState<string>()
   const offline = useOffline()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [anchor, setAnchor] = useState<Anchor>()
+
+  const mark = (m: Mark) => markSeen(m).catch(() => setError('Die Prüfliste konnte nicht gespeichert werden.'))
+
+  useEffect(() => {
+    const offline = () => mark('offline')
+    if (!navigator.onLine) offline()
+    addEventListener('offline', offline)
+    return () => removeEventListener('offline', offline)
+  }, [])
 
   useEffect(() => {
     const code = new URLSearchParams(location.search).get('start')
@@ -45,8 +58,12 @@ export function App() {
           setGroup(stored)
           if (code !== null && stored) setError(`Auf diesem Gerät spielt schon die Gruppe ${stored.name}. Der Startcode ${code} wurde nicht verwendet.`)
           else if (code !== null) setStartCode(code)
+          // A first visit, without a group or a last view, opens the welcome page; a start code goes straight to its group.
           // The stored name may be from a version with other screens.
-          setScreen(!stored ? 'start' : last && Object.hasOwn(screens, last) ? (last as Screen) : 'roles')
+          const known = last && Object.hasOwn(screens, last) ? (last as Screen) : undefined
+          if (code !== null && !stored) setScreen('start')
+          else if (!stored) setScreen(known === 'start' || known === 'teacher' || known === 'welcome' ? known : 'welcome')
+          else setScreen(known ?? 'roles')
         },
         () => setError('Der Speicher dieses Geräts ist nicht verfügbar.'),
       )
@@ -58,10 +75,13 @@ export function App() {
     root.dataset.tempo = settings.tempo
   }, [settings])
 
-  function go(next: Screen) {
+  function go(next: Screen, target?: Anchor) {
     setStartCode(undefined)
+    setAnchor(target)
     setScreen(next)
-    focusHeading()
+    if (next === 'teacher') mark('teacher')
+    // A screen with an anchor moves the focus there itself, once that part is rendered.
+    if (!target) focusHeading()
     save(SCREEN_KEY, next).catch(() => setError('Die aktuelle Ansicht konnte nicht gespeichert werden.'))
   }
 
@@ -77,11 +97,18 @@ export function App() {
         <nav aria-label="Menü" class="menu">
           <ReadAloud />
           <SettingsToggle open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} />
-          <button type="button" onClick={() => go('teacher')}>
+          <button type="button" onClick={() => go('welcome')}>
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.5 5.5-2.8 6.2-6.2 2.8 2.8-6.2Z" fill="currentColor" />
+            </svg>
+            <span class="label">Rundgang</span>
+          </button>
+          {/* The visible word is the start of the name, so voice control finds it. */}
+          <button type="button" aria-label="Lehrkräfte-Ansicht" onClick={() => go('teacher')}>
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
               <path d="M12 3 1 8l11 5 9-4.1V15h2V8Z M5 12.2V16c0 2 3.1 4 7 4s7-2 7-4v-3.8l-7 3.2Z" fill="currentColor" />
             </svg>
-            <span class="label">Lehrkräfte-Ansicht</span>
+            <span class="label">Lehrkräfte</span>
           </button>
         </nav>
         <SettingsPanel settings={settings} onChange={setSettings} open={settingsOpen} />
@@ -89,8 +116,9 @@ export function App() {
       </header>
       <main>
         {error && <p role="alert">{error}</p>}
-        {Current && <Current go={go} group={group} setGroup={setGroup} startCode={startCode} />}
-        <p class="note">Alle Inhalte sind erfundene Beispiele. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>
+        {Current && <Current go={go} group={group} setGroup={setGroup} startCode={startCode} anchor={anchor} openSettings={() => setSettingsOpen(true)} />}
+        {/* The welcome page says it at the top already. */}
+        {screen !== 'welcome' && <p class="note">Alle Inhalte sind erfundene Beispiele. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>}
       </main>
       <footer class="site-footer">
         <TechPanel {...offline} />

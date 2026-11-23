@@ -93,7 +93,7 @@ export function PlaceMap({ go, group }: ScreenProps) {
       <>
         {/* The place view replaces the map at once, so a failed save of the open place must show here. */}
         {error && <p role="alert">{error}</p>}
-        <PlaceView place={selected.place} reached={selected.reached} group={group} onBack={() => show(undefined)} />
+        <PlaceView place={selected.place} reached={selected.reached} group={group} onBack={() => show(undefined)} onCollage={() => go('collection', 'collage')} />
       </>
     )
   return (

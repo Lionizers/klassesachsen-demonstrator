@@ -5,7 +5,7 @@ import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import { MINIGAMES_KEY, initialProgress, reduceProgress, type Progress, type ProgressAction } from '../src/minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../src/collage/layout'
 import { LEVELS } from '../src/teacher/report'
-import { api, axeClean, dumpStore, heading, readKey, readStored, reachPlaceFromGroup, writeStored } from './helpers'
+import { api, axeClean, dumpStore, heading, openStart, reachPlaceFromGroup, readKey, readStored, writeStored } from './helpers'
 import { FAIL_PUT, failPut } from './fail-put'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -26,7 +26,7 @@ async function openTeacher(page: Page) {
 }
 
 async function startGroup(page: Page, name = 'Otter') {
-  await page.goto('/')
+  await openStart(page)
   await page.getByRole('button', { name: `Gruppe ${name}` }).click()
   await expect(heading(page, `Gruppe ${name}`)).toBeFocused()
 }
@@ -55,7 +55,7 @@ const finishedAt = (end: number): Progress =>
   ] as ProgressAction[]).reduce(reduceProgress, initialProgress(burgFunkelfels))
 
 test('AE1: chosen groups get a start code and a QR code that starts the group', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await openTeacher(page)
   await expect(page.locator('main')).toContainText('ohne Anmeldung und ohne PIN')
   await pickClass(page, 'Otter', 'Moosgrün')
@@ -136,7 +136,7 @@ test('AE3/AE4: group view and competence grid show the three indicators, marked 
 })
 
 test('AE3: a demo group is labelled as invented and has no delete or image functions', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await openTeacher(page)
   await openGroup(page, 'Beispiel Eiche')
   await expect(page.locator('main')).toContainText(DEMO)
@@ -147,7 +147,7 @@ test('AE3: a demo group is labelled as invented and has no delete or image funct
 test('AE5: the printed report holds levels, descriptions, date and quest, but no grade and no points', async ({ page }) => {
   await page.clock.setFixedTime(NOW)
   await page.addInitScript(() => { window.print = () => { (window as unknown as { printed: boolean }).printed = true } })
-  await page.goto('/')
+  await openStart(page)
   await openTeacher(page)
   await openGroup(page, 'Beispiel Ahorn')
   await page.getByRole('button', { name: 'Bericht' }).click()
@@ -226,7 +226,7 @@ for (const [label, age, kept] of [['kept', 84 * DAY, true], ['deleted', 84 * DAY
     await startGroup(page)
     await writeStored(page, MINIGAMES_KEY, (_, value) => value, finishedAt(NOW - age))
     await page.reload()
-    await expect(heading(page, kept ? 'Gruppe Otter' : 'Wie heißt eure Gruppe?')).toBeVisible()
+    await expect(heading(page, kept ? 'Gruppe Otter' : 'Willkommen beim Demonstrator')).toBeVisible()
     expect(await readKey(page, MINIGAMES_KEY)).toEqual(kept ? expect.anything() : undefined)
   })
 }
@@ -256,7 +256,7 @@ test('AE8: an unfinished quest is kept 12 weeks after its last activity and dele
   await expect(heading(page, PLACE_NAME)).toBeVisible()
   await page.clock.setFixedTime(NOW + 84 * DAY + 1)
   await page.reload()
-  await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeVisible()
+  await expect(heading(page, 'Willkommen beim Demonstrator')).toBeVisible()
   expect(Object.keys(await dumpStore(page)).filter((k) => !['class', 'settings', 'screen'].includes(k))).toEqual([])
 })
 
@@ -268,7 +268,7 @@ test('AE8: all group data is deleted at the end of the school year, from 1 Augus
   await expect(heading(page, 'Gruppe Otter')).toBeVisible()
   await page.clock.setFixedTime(at('2027-08-01T00:00'))
   await page.reload()
-  await expect(heading(page, 'Wie heißt eure Gruppe?')).toBeVisible()
+  await expect(heading(page, 'Willkommen beim Demonstrator')).toBeVisible()
   expect(await readKey(page, GROUP_KEY)).toBeUndefined()
 })
 
@@ -298,7 +298,7 @@ test('after deleting a group started by QR code, its start code does not start i
 })
 
 test('the start code hint and error follow easy language, the error sits above the content', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByText('Einstellungen', { exact: true }).click()
   await page.getByLabel('Einfache Sprache').check()
   await expect(page.getByText('Der Code steht auf eurem Zettel.')).toBeVisible()
@@ -309,7 +309,7 @@ test('the start code hint and error follow easy language, the error sits above t
 })
 
 test('a real group named like a demo group stays apart from it', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await page.getByLabel('Eigener Gruppenname').fill('Ahorn')
   await page.getByRole('button', { name: 'Gruppe anlegen' }).click()
   await expect(heading(page, 'Gruppe Ahorn')).toBeFocused()
@@ -353,7 +353,7 @@ test('loading fails: the teacher view says so and still leads back to the app, a
 
 test('saving the class list fails: an error is shown and the choice is taken back', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
-  await page.goto('/')
+  await openStart(page)
   await openTeacher(page)
   await failPut(page, 'class')
   const otter = page.getByRole('group', { name: 'Gruppen der Klasse' }).getByRole('checkbox', { name: 'Otter', exact: true })
@@ -397,7 +397,7 @@ test('the QR codes cannot be drawn: an error is shown, the typed start codes sta
   await page.addInitScript(() => {
     HTMLCanvasElement.prototype.toDataURL = () => { throw new Error('canvas blocked') }
   })
-  await page.goto('/')
+  await openStart(page)
   await openTeacher(page)
   await pickClass(page, 'Otter')
   await page.getByRole('button', { name: 'Startcodes drucken' }).click()

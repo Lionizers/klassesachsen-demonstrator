@@ -6,14 +6,16 @@ import { qrReader } from '../places/qr'
 import { focusHeading } from '../focus'
 import type { Group } from '../group'
 import { Place as Minigames } from '../minigames/Place'
+import { PlaceCodeHelp, QrSheet } from '../demo/DemoHelp'
 
 const RADIUS_M = 100
 const WRONG_PLACE = 'Das ist ein anderer Ort. Sucht das Schild von diesem Ort.'
 
-type Props = { place: Place; reached: boolean; group: Group | undefined; onBack: () => void }
+type Props = { place: Place; reached: boolean; group: Group | undefined; onBack: () => void; onCollage: () => void }
 
-export function PlaceView({ place, reached: alreadyReached, group, onBack }: Props) {
+export function PlaceView({ place, reached: alreadyReached, group, onBack, onCollage }: Props) {
   const [reached, setReached] = useState(alreadyReached)
+  const [sheet, setSheet] = useState(false)
   const [denied, setDenied] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
@@ -129,7 +131,12 @@ export function PlaceView({ place, reached: alreadyReached, group, onBack }: Pro
     )
   }
 
-  if (reached && place.id === MINIGAME_PLACE) return <Minigames group={group} onBack={onBack} />
+  if (reached && place.id === MINIGAME_PLACE) return <Minigames group={group} onBack={onBack} onCollage={onCollage} />
+  const showSheet = (open: boolean) => {
+    setSheet(open)
+    focusHeading()
+  }
+  if (sheet) return <QrSheet onBack={() => showSheet(false)} />
   return (
     <section aria-labelledby="place-title">
       <h2 id="place-title" tabIndex={-1}>{place.name}</h2>
@@ -166,6 +173,7 @@ export function PlaceView({ place, reached: alreadyReached, group, onBack }: Pro
               <button type="button" onClick={reach}>Im Klassenzimmer spielen</button>
             </>
           )}
+          <PlaceCodeHelp place={place} onSheet={() => showSheet(true)} />
         </>
       )}
       <button type="button" onClick={onBack}>Zurück zur Karte</button>

@@ -4,11 +4,12 @@ import { load, removeAllExcept, save } from '../store/db'
 import { focusHeading } from '../focus'
 import { SETTINGS_KEY } from '../settings'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
-import { MINIGAMES_KEY, initialProgress, placeState, type Progress } from '../minigames/progress'
+import { MINIGAMES_KEY, demoSolvedIds, initialProgress, placeState, type Progress } from '../minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../collage/layout'
 import { DEMO_GROUPS } from '../teacher/demo'
 import { INDICATORS, LEVELS, RETENTION_WEEKS, indicators, isExpired } from '../teacher/report'
-import type { ScreenProps } from './types'
+import { useQrCodes } from '../qr-codes'
+import { playScreen, type ScreenProps } from './types'
 
 /** Only suggested names: the class list can never hold a child's name. */
 export const CLASS_KEY = 'class'
@@ -98,13 +99,15 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
   const back = (target: View, label: string) => <button type="button" onClick={() => show(target)}>{label}</button>
 
   let content
-  const backToApp = <button type="button" onClick={() => go(group ? 'roles' : 'start')}>Zurück zur App</button>
+  const backToApp = <button type="button" onClick={() => go(playScreen(group))}>Zurück zur App</button>
+  const backToWelcome = <button type="button" onClick={() => go('welcome')}>Zurück zur Willkommensseite</button>
   if (!data) {
     content = (
       <>
         <h2 tabIndex={-1}>Lehrkräfte-Ansicht</h2>
         {/* Also the way out when loading failed. */}
         {backToApp}
+        {backToWelcome}
       </>
     )
   } else if (view.kind === 'codes') {
@@ -157,10 +160,15 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
       </>
     )
   } else if (row?.progress && view.kind === 'group') {
+    const demoIds = demoSolvedIds(row.progress)
+    const demoSolved = GAMES.filter((g) => demoIds.has(g.id))
     content = (
       <>
         <h2 tabIndex={-1}>Gruppenansicht {row.name}</h2>
         {row.demo && <p class="demo">{DEMO}</p>}
+        {demoSolved.length > 0 && (
+          <p class="demo">Per Demo-Hilfe als gelöst markiert, nicht gespielt: {demoSolved.map((g) => g.title.standard).join(', ')}</p>
+        )}
         <ul aria-label="Indikatoren" class="indicators">
           {indicators(row.progress, GAMES).map((i) => <li key={i.id}><Indicator {...i} /></li>)}
         </ul>
@@ -189,6 +197,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
     content = (
       <>
         <h2 tabIndex={-1}>Lehrkräfte-Ansicht</h2>
+        <p class="role">Die Lehrkräfte-Ansicht ist die zweite Rolle der App: Hier begleitet die Lehrkraft ihre Klasse, sieht den Stand jeder Gruppe und gibt Bildbeiträge frei.</p>
         <p>Ausschnitt für die Vorführung, ohne Anmeldung und ohne PIN. Die App erfasst nur Gruppen, keine einzelnen Kinder.</p>
         <fieldset>
           <legend>Gruppen der Klasse</legend>
@@ -210,7 +219,8 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
                 {r.demo && <> · <span class="demo">{DEMO}</span></>}
                 {p ? (
                   <>
-                    <br />Station: {station} · Status: {STATUS[placeState(p)]}{' '}
+                    <br />Station: {station} · Status: {STATUS[placeState(p)]}
+                    {demoSolvedIds(p).size > 0 && ' · teils per Demo-Hilfe gelöst'}{' '}
                     {back({ kind: 'group', name: r.name }, `${r.name} ansehen`)}
                   </>
                 ) : (
@@ -220,7 +230,10 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
             )
           })}
         </ul>
-        {backToApp}
+        <div class="actions">
+          {backToApp}
+          {backToWelcome}
+        </div>
       </>
     )
   }
@@ -265,13 +278,10 @@ function Contributions({ list, decide }: { list: Contribution[]; decide: (id: st
 }
 
 function Codes({ names, onError, back }: { names: string[]; onError: (e: string) => void; back: preact.JSX.Element }) {
-  const [qr, setQr] = useState<string[]>([])
-  useEffect(() => {
-    // Only the print sheet needs the encoder, so it stays out of the app bundle.
-    import('qrcode')
-      .then((QR) => Promise.all(names.map((n) => QR.toDataURL(`${location.origin}/?start=${encodeURIComponent(startCode(n))}`, { width: 192 }))))
-      .then(setQr, () => onError('Die QR-Codes konnten nicht erzeugt werden.'))
-  }, [])
+  const qr = useQrCodes(
+    names.map((n) => `${location.origin}/?start=${encodeURIComponent(startCode(n))}`),
+    () => onError('Die QR-Codes konnten nicht erzeugt werden.'),
+  )
   return (
     <>
       <h2 tabIndex={-1}>Startcodes</h2>

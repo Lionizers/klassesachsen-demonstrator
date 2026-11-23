@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { ASK_FOR_HELP, PLACE_NAME, PLACE_WELCOME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Puzzle } from '../src/minigames/model'
 import { FAIL_PUT, failPut } from './fail-put'
-import { WCAG, backToMap, backToStations, checkIn, estimate, heading, openMapFromGroup, reachPlaceFromGroup, reachPlaceFromMap, solveEstimate, startGroup } from './helpers'
+import { backToMap, backToStations, checkIn, estimate, heading, openMapFromGroup, openStart, reachPlaceFromGroup, reachPlaceFromMap, solveEstimate, startGroup, WCAG } from './helpers'
 
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const dilemma = burgFunkelfels.find((g): g is Dilemma => g.kind === 'dilemma')!
@@ -164,7 +164,7 @@ test('AE4: high contrast gives text at least 7:1 on every view', async ({ page }
     // An unmeasurable text would pass silently, so "could not check" counts as a failure.
     expect(result.incomplete, view).toEqual([])
   }
-  await page.goto('/')
+  await openStart(page)
   await openSettings(page)
   await page.getByLabel('Hoher Kontrast').check()
   await enhanced('start')
@@ -315,7 +315,7 @@ async function tabTo(page: Page, target: Locator) {
 
 test('AE7: settings and the whole quest run on the keyboard alone with a visible focus', async ({ page }) => {
   const button = (name: string | RegExp) => page.getByRole('button', { name, exact: typeof name === 'string' })
-  await page.goto('/')
+  await openStart(page)
   const settings = page.getByRole('button', { name: 'Einstellungen' })
   await tabTo(page, settings)
   await page.keyboard.press('Enter')
@@ -387,7 +387,7 @@ test('AE7: settings and the whole quest run on the keyboard alone with a visible
 
 test('AE8: without speech output the button says that reading aloud is unavailable', async ({ page }) => {
   await page.addInitScript(() => Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: undefined }))
-  await page.goto('/')
+  await openStart(page)
   await readView(page).click()
   await expect(page.getByRole('alert')).toHaveText('Vorlesen ist in diesem Browser nicht verfügbar.')
 })
@@ -397,7 +397,7 @@ test('AE8: without a German voice the button says that reading aloud is unavaila
     configurable: true,
     value: { cancel() {}, getVoices: () => [{ lang: 'en-US' }], speak() {} },
   }))
-  await page.goto('/')
+  await openStart(page)
   await readView(page).click()
   await expect(page.getByRole('alert')).toHaveText('Vorlesen ist in diesem Browser nicht verfügbar.')
 })
@@ -414,7 +414,7 @@ test('AE8: a failed utterance is reported; one cut off by the next request is no
       },
     })
   })
-  await page.goto('/')
+  await openStart(page)
   await page.evaluate(() => { (window as unknown as { speechError: string }).speechError = 'interrupted' })
   await readView(page).click()
   await page.evaluate(() => new Promise((r) => setTimeout(r, 50)))
@@ -426,7 +426,7 @@ test('AE8: a failed utterance is reported; one cut off by the next request is no
 
 test('saving the settings fails: the panel says so', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
-  await page.goto('/')
+  await openStart(page)
   await failPut(page)
   await openSettings(page)
   await page.getByLabel('Hoher Kontrast').check()
@@ -439,7 +439,7 @@ test('saving the settings fails: the panel says so', async ({ page }) => {
 test('a save error and a read-aloud notice are shown side by side', async ({ page }) => {
   await page.addInitScript(FAIL_PUT)
   await page.addInitScript(() => Object.defineProperty(window, 'speechSynthesis', { configurable: true, value: undefined }))
-  await page.goto('/')
+  await openStart(page)
   await failPut(page)
   await openSettings(page)
   await page.getByLabel('Hoher Kontrast').check()
@@ -457,7 +457,7 @@ test('AE9: every view has no WCAG 2.1 A/AA violations and no unmeasured contrast
     expect(result.violations, view).toEqual([])
     expect(result.incomplete.filter((r) => r.id.startsWith('color-contrast')), view).toEqual([])
   }
-  await page.goto('/')
+  await openStart(page)
   await openSettings(page)
   await check('start-with-settings')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()

@@ -6,6 +6,7 @@ import { load, save } from '../store/db'
 import { ItemImage, ItemProgress } from '../collection/ItemArt'
 import { collected } from '../collection/items'
 import { Fidelius } from '../fidelius'
+import { DemoSolveHelp } from '../demo/DemoHelp'
 import { ReadAloud, SettingsContext, playSuccessTone, text } from '../settings'
 import { ASK_FOR_HELP, GUIDE_NAME, PLACE_NAME, PLACE_WELCOME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle, type Text } from './model'
@@ -14,12 +15,12 @@ import { MINIGAMES_KEY, countEvents, initialProgress, placeState, reduceProgress
 const STATUS_LABEL = { open: 'offen', skipped: 'später nachholen', done: 'geschafft' }
 const PLACE_LABEL = { new: 'Noch nicht begonnen.', started: 'Angefangen.', done: 'Alle Stationen geschafft!' }
 
-type Apply = (...actions: ProgressAction[]) => void
+type Apply = (...actions: ProgressAction[]) => Promise<boolean>
 type Result = { game: Minigame; consequence?: Text }
 
-type Props = { group: Group | undefined; onBack: () => void }
+type Props = { group: Group | undefined; onBack: () => void; onCollage: () => void }
 
-export function Place({ group, onBack }: Props) {
+export function Place({ group, onBack, onCollage }: Props) {
   const settings = useContext(SettingsContext)
   const { easy } = settings
   const [progress, setProgress] = useState<Progress>()
@@ -47,10 +48,17 @@ export function Place({ group, onBack }: Props) {
     focusHeading()
   }
 
+  /** Resolves true once stored; a failed save is shown, not thrown. */
   const apply: Apply = (...actions) => {
     const next = actions.reduce(reduceProgress, progress)
     setProgress(next)
-    save(MINIGAMES_KEY, next).catch(() => setError('Der Spielstand konnte nicht gespeichert werden.'))
+    return save(MINIGAMES_KEY, next).then(
+      () => true,
+      () => {
+        setError('Der Spielstand konnte nicht gespeichert werden.')
+        return false
+      },
+    )
   }
 
   if (result) {
@@ -140,6 +148,7 @@ export function Place({ group, onBack }: Props) {
           )
         })}
       </ul>
+      {state !== 'done' && <DemoSolveHelp ids={GAMES.map((g) => g.id)} apply={apply} onSolved={onCollage} />}
       {back}
     </section>
   )

@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { GUIDE_NAME, PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Puzzle } from '../src/minigames/model'
-import { axeClean, backToMap, backToStations, checkIn, estimate, heading, leaveToGroup, openMapFromGroup, reachPlaceFromGroup, reachPlaceFromMap, solveEstimate, startGroup } from './helpers'
+import { axeClean, backToMap, backToStations, checkIn, estimate, heading, leaveToGroup, openMapFromGroup, openStart, reachPlaceFromGroup, reachPlaceFromMap, solveEstimate, startGroup } from './helpers'
 
 const IPAD = { width: 1024, height: 768 }
 const PHONE = { width: 360, height: 640 }
@@ -27,7 +27,7 @@ test.describe('on an iPad in landscape', () => {
   test.use({ viewport: IPAD })
 
   test('AE1: the header takes at most 15 % of the height and holds title, offline symbol and the menu', async ({ page }) => {
-    await page.goto('/')
+    await openStart(page)
     await expect(header(page).getByRole('heading', { level: 1 })).toBeVisible()
     await expect(header(page).getByRole('status').filter({ hasText: /^offline bereit$/ })).toBeVisible()
     const menu = header(page).getByRole('navigation', { name: 'Menü' })
@@ -86,7 +86,7 @@ test.describe('on an iPad in landscape', () => {
 })
 
 test('AE2: download size, sync target and queue sit in "Technik für Prüfer"', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await expect(tech(page).getByText(/^Download für offline: [\d.]+ kB$/)).toBeHidden()
   await tech(page).getByText('Technik für Prüfer', { exact: true }).click()
   await expect(tech(page).getByText(/^Download für offline: [\d.]+ kB$/)).toBeVisible()
@@ -96,7 +96,7 @@ test('AE2: download size, sync target and queue sit in "Technik für Prüfer"', 
 })
 
 test('AE3: Fidelius greets as a figure with a speech bubble and gives the hints in it', async ({ page }) => {
-  await page.goto('/')
+  await openStart(page)
   await expect(fidelius(page)).toBeVisible()
   await expect(fidelius(page)).toContainText('Ich bin Fuchs Fidelius')
   await page.getByRole('button', { name: 'Gruppe Otter' }).click()
@@ -151,7 +151,7 @@ test('AE6: high contrast gives 7:1 on the open menu, the technical details and t
     expect(result.violations, view).toEqual([])
     expect(result.incomplete, view).toEqual([])
   }
-  await page.goto('/')
+  await openStart(page)
   await page.getByText('Einstellungen', { exact: true }).click()
   await page.getByLabel('Hoher Kontrast').check()
   await tech(page).getByText('Technik für Prüfer', { exact: true }).click()
@@ -184,7 +184,7 @@ test.describe('on a phone', () => {
       const { scroll, width } = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, width: innerWidth }))
       expect(scroll, view).toBeLessThanOrEqual(width)
     }
-    await page.goto('/')
+    await openStart(page)
     await fits('start')
     const settings = page.getByRole('button', { name: 'Einstellungen' })
     await settings.click()
