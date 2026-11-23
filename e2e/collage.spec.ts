@@ -42,7 +42,8 @@ const fingerprint = (page: Page) =>
 
 async function exportCollage(page: Page) {
   await save(page).click()
-  await expect(saved(page)).toHaveText('Gespeichert. Die Lehrkraft kann den Beitrag freigeben.')
+  // Encoding a 2048 px PNG plus preview takes seconds on a shared CI runner.
+  await expect(saved(page)).toHaveText('Gespeichert. Die Lehrkraft kann den Beitrag freigeben.', { timeout: 20_000 })
 }
 
 const describeStored = (page: Page) =>
@@ -107,7 +108,7 @@ test('the save button keeps the keyboard focus while saving and ignores a second
   await page.keyboard.press('Enter')
   await expect(save(page)).toHaveAttribute('aria-disabled', 'true')
   await page.keyboard.press('Enter')
-  await expect(saved(page)).toHaveText('Gespeichert. Die Lehrkraft kann den Beitrag freigeben.')
+  await expect(saved(page)).toHaveText('Gespeichert. Die Lehrkraft kann den Beitrag freigeben.', { timeout: 20_000 })
   await expect(save(page)).toBeFocused()
   await expect.poll(() => describeStored(page)).toHaveLength(1)
 })

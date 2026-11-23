@@ -54,8 +54,16 @@ async function precachedKB(): Promise<number> {
 const formatTime = (at: number) =>
   new Date(at).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
-export function OfflineStatus() {
-  // null: the cache could not be measured.
+type Offline = {
+  /** null: the cache could not be measured; undefined: still measuring. */
+  kb: number | null | undefined
+  queue?: { pending: number; at?: number }
+  error?: string
+  persistDenied: boolean
+}
+
+/** Measures the offline cache, keeps the sync queue running and asks for durable storage; read once by the app. */
+export function useOffline(): Offline {
   const [kb, setKb] = useState<number | null>()
   const [queue, setQueue] = useState<{ pending: number; at?: number }>()
   const [error, setError] = useState<string>()
@@ -92,24 +100,49 @@ export function OfflineStatus() {
     }
   }, [])
 
+  return { kb, queue, error, persistDenied }
+}
+
+/** The one offline sign in the header; the details are in the technical panel. */
+export function OfflineBadge({ kb }: Pick<Offline, 'kb'>) {
   return (
-    <div class="offline-status">
-      <p role="status">
-        {kb === undefined
-          ? 'Offline-Vorbereitung lädt …'
-          : kb === null
-            ? 'Der Offline-Speicher konnte nicht geprüft werden.'
-            : `bereit für offline ✔ · ${kb.toLocaleString('de-DE')} kB`}
-      </p>
-      {queue && (
-        <p>Offene Ergebnisse: {queue.pending}{queue.at !== undefined && ` · zuletzt synchronisiert ${formatTime(queue.at)}`}</p>
+    <p role="status" class="offline-badge">
+      {kb === undefined ? (
+        'Offline-Vorbereitung lädt …'
+      ) : kb === null ? (
+        'Der Offline-Speicher konnte nicht geprüft werden.'
+      ) : (
+        <>
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+            <circle cx="12" cy="12" r="11" fill="currentColor" />
+            <path d="M6.5 12.5l3.5 3.5 7.5-8" fill="none" stroke="var(--brand)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          offline bereit
+        </>
       )}
-      <p>Sync-Ziel: lokale Simulation, kein Server</p>
+    </p>
+  )
+}
+
+/** Details for the evaluators, out of the children's way; the storage hint stays outside the collapsed part. */
+export function TechPanel({ kb, queue, error, persistDenied }: Offline) {
+  return (
+    <section class="tech" aria-label="Technik für Prüfer">
+      <details>
+        <summary>Technik für Prüfer</summary>
+        <ul>
+          <li>{kb === undefined ? 'Download für offline: wird ermittelt' : kb === null ? 'Download für offline: nicht messbar' : `Download für offline: ${kb.toLocaleString('de-DE')} kB`}</li>
+          {queue && (
+            <li>Offene Ergebnisse: {queue.pending}{queue.at !== undefined && ` · zuletzt synchronisiert ${formatTime(queue.at)}`}</li>
+          )}
+          <li>Sync-Ziel: lokale Simulation, kein Server</li>
+        </ul>
+      </details>
       {error && <p role="alert">{error}</p>}
       {/* Always rendered: a live region must exist before its text arrives to be announced. */}
       <p role="status">
         {persistDenied && 'Der Speicher ist nicht dauerhaft gesichert. Installiert die App auf dem Home-Bildschirm, damit der Spielstand erhalten bleibt.'}
       </p>
-    </div>
+    </section>
   )
 }

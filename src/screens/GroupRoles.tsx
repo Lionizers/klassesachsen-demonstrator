@@ -23,14 +23,16 @@ export function GroupRoles({ go, group, setGroup }: ScreenProps) {
       <h2 id="group-title" tabIndex={-1}>Gruppe {group.name}</h2>
       {error && <p role="alert">{error}</p>}
       <p aria-live="polite">Runde {group.round + 1}. Ihr spielt gemeinsam an einem Gerät. Die Rollen wechseln jede Runde.</p>
-      <ol aria-label="Rollen in dieser Runde">
+      <ol aria-label="Rollen in dieser Runde" class="roles">
         {rolesFor(group.round).map((role, i) => (
           <li key={role}>Position {i + 1}: {role}</li>
         ))}
       </ol>
-      <button type="button" onClick={nextRound}>Neue Runde</button>{' '}
-      <button type="button" onClick={() => go('map')}>Zur Karte</button>{' '}
-      <button type="button" onClick={() => go('collection')}>Sammlung</button>
+      <div class="actions">
+        <button type="button" class="primary" onClick={() => go('map')}>Zur Karte</button>
+        <button type="button" onClick={() => go('collection')}>Sammlung</button>
+        <button type="button" onClick={nextRound}>Neue Runde</button>
+      </div>
     </section>
   )
 }

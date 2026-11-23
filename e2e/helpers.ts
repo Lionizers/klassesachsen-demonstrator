@@ -47,11 +47,29 @@ export async function openMapFromGroup(page: Page) {
   await expect(page.getByRole('img', { name: /Fantasiekarte/ })).toBeVisible()
 }
 
-/** From the group screen over the map into Burg Funkelfels by its code; typing before a heading has the focus races the view change. */
-export async function reachPlaceFromGroup(page: Page) {
-  await openMapFromGroup(page)
+/** From the map into Burg Funkelfels by its code, ending on its stations. */
+export async function reachPlaceFromMap(page: Page) {
   await checkIn(page, PLACE_NAME, 'FUNKELFELS')
   await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+}
+
+/** From the group screen over the map into Burg Funkelfels; typing before a heading has the focus races the view change. */
+export async function reachPlaceFromGroup(page: Page) {
+  await openMapFromGroup(page)
+  await reachPlaceFromMap(page)
+}
+
+/** A fresh device: group Otter is created and its screen has the focus. */
+export async function startGroup(page: Page) {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
+}
+
+/** From a station result back to the stations of the place. */
+export async function backToStations(page: Page) {
+  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
   await expect(heading(page, PLACE_NAME)).toBeFocused()
 }
 

@@ -11,7 +11,7 @@ const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const estimate = burgFunkelfels.find((g): g is Estimate => g.kind === 'estimate')!
 const dilemma = burgFunkelfels.find((g): g is Dilemma => g.kind === 'dilemma')!
 
-const ready = (page: Page) => page.getByRole('status').filter({ hasText: /^bereit für offline ✔ · [\d.]+ kB$/ })
+const ready = (page: Page) => page.getByRole('banner').getByRole('status').filter({ hasText: /^offline bereit$/ })
 const queue = (page: Page) => page.getByText(/^Offene Ergebnisse:/)
 const SYNCED = /^Offene Ergebnisse: 0 · zuletzt synchronisiert \d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/
 const station = (page: Page, title: string) => page.getByRole('button', { name: title })
@@ -22,10 +22,12 @@ async function enterPlace(page: Page) {
   await reachPlaceFromGroup(page)
 }
 
-test('AE1: the header says ready for offline with the download size once everything is cached', async ({ page }) => {
+test('AE1: the header says ready for offline once everything is cached; the download size is in the technical details', async ({ page }) => {
   await page.goto('/')
   await expect(ready(page)).toBeVisible()
-  const kb = Number((await ready(page).textContent())!.match(/([\d.]+) kB/)![1].replace('.', ''))
+  await page.getByText('Technik für Prüfer', { exact: true }).click()
+  const size = page.getByText(/^Download für offline: [\d.]+ kB$/)
+  const kb = Number((await size.textContent())!.match(/([\d.]+) kB/)![1].replace('.', ''))
   expect(kb).toBeGreaterThan(0)
   await expect(page.getByText('Sync-Ziel: lokale Simulation, kein Server')).toBeVisible()
 })
@@ -117,10 +119,12 @@ test('AE3: a reopened place the group has not reached yet still asks for its che
   await expect(page.getByRole('list', { name: 'Stationen' })).toHaveCount(0)
 })
 
-test('AE6: storage persistence refused: the header asks to install the app on the home screen', async ({ page }) => {
+test('AE6: storage persistence refused: "Technik für Prüfer" asks to install the app, also while its details are closed', async ({ page }) => {
   await page.addInitScript(() => { StorageManager.prototype.persist = async () => false })
   await page.goto('/')
-  await expect(page.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
+  const tech = page.getByRole('region', { name: 'Technik für Prüfer' })
+  await expect(tech.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
+  await expect(tech.locator('details')).not.toHaveAttribute('open')
 })
 
 test('AE6: storage persistence granted: no install hint', async ({ page }) => {

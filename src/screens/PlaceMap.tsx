@@ -103,13 +103,21 @@ export function PlaceMap({ go, group }: ScreenProps) {
       <p>Wählt einen Ort. Die Reihenfolge ist frei.</p>
       <div class="map">
         <MapArt />
-        <ul aria-label="Orte" class="map-places">
-          {PLACES.map((p) => (
-            <li key={p.id} style={{ left: `${p.x}%`, top: `${p.y}%` }}>
-              {/* One text node: separate ones lie over different map shapes, and axe then cannot measure the contrast. */}
-              <button type="button" onClick={() => show(p)}>{`${p.name} – ${STATUS_LABEL[progress[p.id] ?? 'open']}`}</button>
-            </li>
-          ))}
+        <ul aria-label="Orte" class="tiles">
+          {PLACES.map((p) => {
+            const status = progress[p.id] ?? 'open'
+            return (
+              <li key={p.id} class={`tile status-${status}`}>
+                <button type="button" class="tile-main" onClick={() => show(p)}>
+                  <svg viewBox="-24 -44 48 48" width="56" height="56" aria-hidden="true">{BUILDINGS[p.id]}</svg>
+                  <span class="tile-name">{p.name}</span>
+                  {/* Read as one name, "Burg Funkelfels – offen"; the dash is only for the ear. */}
+                  <span class="visually-hidden"> – </span>
+                  <span class="pill">{STATUS_LABEL[status]}</span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
       </div>
       <button type="button" onClick={() => go('roles')}>Zurück zur Gruppe</button>

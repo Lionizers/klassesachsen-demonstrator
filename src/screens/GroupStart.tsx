@@ -2,8 +2,14 @@ import { useContext, useEffect, useState } from 'preact/hooks'
 import { GROUP_KEY, MAX_NAME_LENGTH, SUGGESTED_NAMES, nameForCode, validateName, type Group } from '../group'
 import { save } from '../store/db'
 import { SettingsContext, text } from '../settings'
+import { Fidelius } from '../fidelius'
+import { GUIDE_NAME } from '../minigames/burg-funkelfels'
 import type { ScreenProps } from './types'
 
+const GREETING = {
+  standard: `Hallo! Ich bin ${GUIDE_NAME} und begleite euch auf der Entdeckerreise. Ihr braucht kein Konto. Wählt einen Namen für eure Gruppe.`,
+  easy: `Hallo! Ich bin ${GUIDE_NAME}. Ich helfe euch. Ihr braucht kein Konto. Sucht euch einen Namen für eure Gruppe aus.`,
+}
 const CODE_HINT = { standard: 'Steht auf dem Zettel eurer Lehrkraft.', easy: 'Der Code steht auf eurem Zettel.' }
 const UNKNOWN_CODE = { standard: 'Diesen Startcode gibt es nicht. Bitte prüft die Schreibweise.', easy: 'Diesen Code gibt es nicht. Schaut noch einmal auf euren Zettel.' }
 
@@ -40,7 +46,7 @@ export function GroupStart({ go, setGroup, startCode }: ScreenProps) {
     <section aria-labelledby="start-title">
       <h2 id="start-title" tabIndex={-1}>Wie heißt eure Gruppe?</h2>
       {error && <p role="alert">{error}</p>}
-      <p>Ihr braucht kein Konto. Wählt einen Namen für eure Gruppe.</p>
+      <Fidelius>{text(GREETING, easy)}</Fidelius>
       <form
         onSubmit={(e) => {
           e.preventDefault()

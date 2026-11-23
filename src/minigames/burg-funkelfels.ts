@@ -1,8 +1,14 @@
 import { MINIGAME_PLACE, PLACES } from '../places/places'
-import type { Minigame } from './model'
+import type { Minigame, Text } from './model'
 
 export const PLACE_NAME = PLACES.find((p) => p.id === MINIGAME_PLACE)!.name
 export const GUIDE_NAME = 'Fuchs Fidelius'
+export const PLACE_WELCOME: Text = {
+  standard: 'Willkommen am Burgtor! Wählt eine Station, die Reihenfolge ist euch überlassen.',
+  easy: 'Willkommen an der Burg! Sucht euch eine Station aus. Ihr dürft anfangen, wo ihr wollt.',
+}
+/** What the guide says on a station before the group asked for a hint. */
+export const ASK_FOR_HELP: Text = { standard: 'Kommt ihr nicht weiter? Fragt mich um Hilfe.', easy: 'Ihr wisst nicht weiter? Fragt mich.' }
 
 export const burgFunkelfels: Minigame[] = [
   {
