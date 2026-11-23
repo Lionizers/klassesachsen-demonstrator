@@ -1,10 +1,10 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { test, expect, type Locator, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
+import { ASK_FOR_HELP, PLACE_NAME, PLACE_WELCOME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Dilemma, Puzzle } from '../src/minigames/model'
 import { FAIL_PUT, failPut } from './fail-put'
-import { WCAG, backToMap, checkIn, estimate, heading, openMapFromGroup, reachPlaceFromGroup, solveEstimate } from './helpers'
+import { WCAG, backToMap, backToStations, checkIn, estimate, heading, openMapFromGroup, reachPlaceFromGroup, reachPlaceFromMap, solveEstimate, startGroup } from './helpers'
 
 const puzzle = burgFunkelfels.find((g): g is Puzzle => g.kind === 'puzzle')!
 const dilemma = burgFunkelfels.find((g): g is Dilemma => g.kind === 'dilemma')!
@@ -54,19 +54,6 @@ async function openSettings(page: Page) {
   await page.getByText('Einstellungen', { exact: true }).click()
 }
 
-async function startGroup(page: Page) {
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
-}
-
-/** From the map to the stations of the minigame place. */
-async function reachStations(page: Page) {
-  await checkIn(page, PLACE_NAME, 'FUNKELFELS')
-  await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
-  await expect(heading(page, PLACE_NAME)).toBeFocused()
-}
-
 async function openStation(page: Page, title: string) {
   await page.getByRole('button', { name: title }).click()
   await expect(heading(page, title)).toBeFocused()
@@ -76,11 +63,6 @@ async function openStation(page: Page, title: string) {
 async function voteDilemma(page: Page) {
   for (let i = 0; i < 3; i++) await page.getByRole('button', { name: dilemma.options[0].label.standard }).click()
   await expect(heading(page, `${dilemma.title.standard}: geschafft!`)).toBeFocused()
-}
-
-const backToStations = async (page: Page) => {
-  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
-  await expect(heading(page, PLACE_NAME)).toBeFocused()
 }
 
 async function openCollectionFromStations(page: Page) {
@@ -146,7 +128,9 @@ test('AE3: easy language switches the minigame texts and survives a reload', asy
   await openSettings(page)
   await page.getByLabel('Einfache Sprache').check()
   await reachPlaceFromGroup(page)
+  await expect(page.getByText(PLACE_WELCOME.easy, { exact: true })).toBeVisible()
   await openStation(page, puzzle.title.easy)
+  await expect(page.getByText(ASK_FOR_HELP.easy, { exact: true })).toBeVisible()
   await expect(page.getByText(puzzle.prompt.easy, { exact: true })).toBeVisible()
   await expect(page.getByText(`Belohnung: ${puzzle.reward.easy}`)).toBeVisible()
   await expect(page.getByText(puzzle.pieces[0].easy, { exact: true })).toBeVisible()
@@ -194,7 +178,7 @@ test('AE4: high contrast gives text at least 7:1 on every view', async ({ page }
   await expect(page.getByText('Station erreicht!')).toBeVisible()
   await enhanced('place-reached')
   await backToMap(page)
-  await reachStations(page)
+  await reachPlaceFromMap(page)
   await enhanced('stations')
   await openStation(page, puzzle.title.standard)
   await enhanced('puzzle')
@@ -447,6 +431,9 @@ test('saving the settings fails: the panel says so', async ({ page }) => {
   await openSettings(page)
   await page.getByLabel('Hoher Kontrast').check()
   await expect(page.getByRole('alert')).toHaveText('Die Einstellungen konnten nicht gespeichert werden.')
+  // Closing the settings must not hide the failure.
+  await page.getByRole('button', { name: 'Einstellungen' }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
 })
 
 test('a save error and a read-aloud notice are shown side by side', async ({ page }) => {

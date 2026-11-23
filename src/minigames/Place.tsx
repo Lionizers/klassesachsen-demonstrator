@@ -7,12 +7,12 @@ import { ItemImage, ItemProgress } from '../collection/ItemArt'
 import { collected } from '../collection/items'
 import { Fidelius } from '../fidelius'
 import { ReadAloud, SettingsContext, playSuccessTone, text } from '../settings'
-import { GUIDE_NAME, PLACE_NAME, burgFunkelfels as GAMES } from './burg-funkelfels'
+import { ASK_FOR_HELP, GUIDE_NAME, PLACE_NAME, PLACE_WELCOME, burgFunkelfels as GAMES } from './burg-funkelfels'
 import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle, type Text } from './model'
 import { MINIGAMES_KEY, countEvents, initialProgress, placeState, reduceProgress, type Progress, type ProgressAction } from './progress'
 
 const STATUS_LABEL = { open: 'offen', skipped: 'später nachholen', done: 'geschafft' }
-const PLACE_LABEL = { new: 'Noch nicht begonnen.', started: 'Angefangen', done: 'Alle Stationen geschafft!' }
+const PLACE_LABEL = { new: 'Noch nicht begonnen.', started: 'Angefangen.', done: 'Alle Stationen geschafft!' }
 
 type Apply = (...actions: ProgressAction[]) => void
 type Result = { game: Minigame; consequence?: Text }
@@ -66,12 +66,14 @@ export function Place({ group, onBack }: Props) {
           </>
         )}
         <div class="earned">
-          <svg viewBox="-50 -50 100 100" class="burst" aria-hidden="true">
-            {Array.from({ length: 12 }, (_, i) => (
-              <path key={i} d="M-4 -28 L0 -48 L4 -28 Z" fill={i % 2 ? '#ffd166' : '#f4845f'} transform={`rotate(${i * 30})`} />
-            ))}
-          </svg>
-          <ItemImage art={result.game.item} size={128} />
+          <div class="prize">
+            <svg viewBox="-50 -50 100 100" class="burst" aria-hidden="true">
+              {Array.from({ length: 12 }, (_, i) => (
+                <path key={i} d="M-4 -28 L0 -48 L4 -28 Z" fill={i % 2 ? '#ffd166' : '#f4845f'} transform={`rotate(${i * 30})`} />
+              ))}
+            </svg>
+            <ItemImage art={result.game.item} size={128} />
+          </div>
           <p>{earned}</p>
         </div>
         <ReadAloud text={earned} />
@@ -106,16 +108,12 @@ export function Place({ group, onBack }: Props) {
   }
 
   const state = placeState(progress)
-  const doneCount = Object.values(progress.status).filter((s) => s === 'done').length
   return (
     <section aria-labelledby="place-title">
       {alert}
       {heading}
-      <Fidelius>Willkommen am Burgtor! Wählt eine Station, die Reihenfolge ist euch überlassen.</Fidelius>
-      <p>
-        {PLACE_LABEL[state]}
-        {state === 'started' && `: ${doneCount} von ${GAMES.length} Stationen geschafft.`}
-      </p>
+      <Fidelius>{text(PLACE_WELCOME, easy)}</Fidelius>
+      <p>{PLACE_LABEL[state]}</p>
       <ItemProgress games={GAMES} found={collected(GAMES, progress)} />
       <ul aria-label="Stationen" class="tiles">
         {GAMES.map((game) => {
@@ -173,10 +171,11 @@ function Station({ game, roles, hintsShown, attempts, apply, onDone, onSkip }: S
       <p class="reward"><ItemImage art={game.item} /> Belohnung: {text(game.reward, easy)}</p>
       {gameView()}
       <Fidelius live>
-        {hintsShown === 0 && <p>Kommt ihr nicht weiter? Fragt mich um Hilfe.</p>}
+        {hintsShown === 0 && <p>{text(ASK_FOR_HELP, easy)}</p>}
         {game.hints.slice(0, hintsShown).map((hint) => (
           <Fragment key={hint.standard}>
-            <p>{text(hint, easy)}</p>
+            {/* The live region announces only the added text, so it names the speaker. */}
+            <p><span class="visually-hidden">{GUIDE_NAME}: </span>{text(hint, easy)}</p>
             <ReadAloud text={text(hint, easy)} />
           </Fragment>
         ))}

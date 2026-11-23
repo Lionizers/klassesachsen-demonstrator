@@ -5,7 +5,7 @@ import { load, save } from './store/db'
 import { focusHeading } from './focus'
 import { OfflineBadge, TechPanel, useOffline } from './offline'
 import { FoxArt } from './fidelius'
-import { DEFAULTS, ReadAloud, SETTINGS_KEY, SettingsContext, SettingsPanel, type Settings } from './settings'
+import { DEFAULTS, ReadAloud, SETTINGS_KEY, SettingsContext, SettingsPanel, SettingsToggle, type Settings } from './settings'
 import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { PlaceMap } from './screens/PlaceMap'
@@ -29,6 +29,7 @@ export function App() {
   const [purgeError, setPurgeError] = useState(false)
   const [startCode, setStartCode] = useState<string>()
   const offline = useOffline()
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     const code = new URLSearchParams(location.search).get('start')
@@ -75,7 +76,7 @@ export function App() {
         <OfflineBadge kb={offline.kb} />
         <nav aria-label="Menü" class="menu">
           <ReadAloud />
-          <SettingsPanel settings={settings} onChange={setSettings} />
+          <SettingsToggle open={settingsOpen} onToggle={() => setSettingsOpen(!settingsOpen)} />
           <button type="button" onClick={() => go('teacher')}>
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
               <path d="M12 3 1 8l11 5 9-4.1V15h2V8Z M5 12.2V16c0 2 3.1 4 7 4s7-2 7-4v-3.8l-7 3.2Z" fill="currentColor" />
@@ -83,6 +84,7 @@ export function App() {
             <span class="label">Lehrkräfte-Ansicht</span>
           </button>
         </nav>
+        <SettingsPanel settings={settings} onChange={setSettings} open={settingsOpen} />
         {purgeError && <p role="alert">Abgelaufene Gruppendaten konnten nicht gelöscht werden.</p>}
       </header>
       <main>

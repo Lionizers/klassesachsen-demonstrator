@@ -85,10 +85,21 @@ export function ReadAloud({ text: content }: { text?: string }) {
   )
 }
 
-type PanelProps = { settings: Settings; onChange: (settings: Settings) => void }
+/** Opens the settings; the panel itself sits below the menu, outside the navigation. */
+export function SettingsToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <button type="button" aria-expanded={open} aria-controls="settings" onClick={onToggle}>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" fill="currentColor" transform="translate(-1 0)" />
+      </svg>
+      <span class="label">Einstellungen</span>
+    </button>
+  )
+}
 
-export function SettingsPanel({ settings, onChange }: PanelProps) {
-  const [open, setOpen] = useState(false)
+type PanelProps = { settings: Settings; onChange: (settings: Settings) => void; open: boolean }
+
+export function SettingsPanel({ settings, onChange, open }: PanelProps) {
   const [error, setError] = useState<string>()
 
   function update(patch: Partial<Settings>) {
@@ -102,15 +113,9 @@ export function SettingsPanel({ settings, onChange }: PanelProps) {
 
   return (
     <>
-      <button type="button" class="settings-toggle" aria-expanded={open} aria-controls="settings" onClick={() => setOpen(!open)}>
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.9a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.9a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" fill="currentColor" transform="translate(-1 0)" />
-        </svg>
-        <span class="label">Einstellungen</span>
-      </button>
-      {/* Below the menu in the page flow: an overlay would cover the view the settings change. */}
+      {/* Outside the panel: closing the settings must not hide a failed save. */}
+      {error && <p role="alert">{error}</p>}
       <div id="settings" class="settings" hidden={!open}>
-        {error && <p role="alert">{error}</p>}
         <label for="rate">Vorlese-Geschwindigkeit: {settings.rate.toLocaleString('de-DE')}×</label>
         <input id="rate" type="range" min="0.5" max="1.5" step="0.25" value={settings.rate}
           onInput={(e) => update({ rate: Number(e.currentTarget.value) })} />

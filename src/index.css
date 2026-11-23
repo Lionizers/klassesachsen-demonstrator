@@ -4,7 +4,9 @@
   --muted: #4a3728;
   --paper: #fff8ec;
   --card: #ffffff;
-  --line: #d9c7ad;
+  /* Edges of cards and tiles: 3:1 against the paper, as WCAG asks of control boundaries. */
+  --line: #8a6d4b;
+  --edge: 2px;
   --brand: #0b5c5a;
   --accent: #9a3412;
   --sun: #ffe6a6;
@@ -21,6 +23,7 @@
   --muted: #000;
   --paper: #fff;
   --line: #000;
+  --edge: 3px;
   --brand: #003b3a;
   --accent: #6e2208;
   --sun: #fff;
@@ -71,7 +74,7 @@ button[aria-pressed='true'] { background: var(--accent); color: #fff; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
 input { font: inherit; padding: 0.5rem; min-height: 44px; border: 2px solid var(--muted); border-radius: 0.5rem; display: block; margin: 0.25rem 0; width: min(100%, 24rem); box-sizing: border-box; background: var(--card); color: var(--ink); }
 label { font-weight: 600; display: block; margin-top: 1rem; }
-form { background: var(--card); border: 2px solid var(--line); border-radius: 1rem; padding: 0.25rem 1rem 1rem; margin: 1rem 0; }
+form { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.25rem 1rem 1rem; margin: 1rem 0; }
 .hint { margin: 0.25rem 0; color: var(--muted); }
 .error { color: #a4161a; min-height: 1.5em; margin: 0.25rem 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
@@ -83,19 +86,22 @@ form { background: var(--card); border: 2px solid var(--line); border-radius: 1r
 /* Fidelius and his speech bubble. */
 .fidelius { display: flex; align-items: flex-end; gap: 0.5rem; margin: 1rem 0; }
 .fidelius .fox { width: 88px; height: 88px; flex: none; }
-.bubble { position: relative; background: var(--card); border: 2px solid var(--line); border-radius: 1.25rem; padding: 0.6rem 1rem; margin-bottom: 1.5rem; max-width: 36rem; }
+.bubble { position: relative; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1.25rem; padding: 0.6rem 1rem; margin-bottom: 1.5rem; max-width: 36rem; }
 .bubble::before { content: ''; position: absolute; left: -12px; bottom: 14px; border: 10px solid transparent; border-right-color: var(--line); border-left: 0; }
 .bubble p { margin: 0.25rem 0; }
 
 /* Tiles for places and stations: symbol, name, status. */
-.tiles { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 0.75rem; }
-.tile { background: var(--card); border: 2px solid var(--line); border-radius: 1rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; min-height: 72px; box-sizing: border-box; }
+.tiles { list-style: none; padding: 0; margin: 1rem 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: 0.75rem; }
+.tile { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; min-height: 72px; box-sizing: border-box; }
 .tile-main { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 0; text-align: left; font-size: 1.1rem; }
 .tile-main svg { flex: none; }
 .tile button.tile-main { border: 0; background: transparent; color: var(--ink); padding: 0.25rem; }
-.tile-name { flex: 1; overflow-wrap: anywhere; hyphens: auto; }
+.tile-name { flex: 1; overflow-wrap: anywhere; }
 .tile.status-done, .tile.status-started { border-color: var(--success); }
-.pill { display: inline-block; border-radius: 999px; padding: 0.1rem 0.7rem; font-size: 0.9rem; font-weight: 600; background: var(--paper); border: 2px solid var(--line); color: var(--ink); }
+/* A done station is no longer a button: flat, without the card it had. */
+span.tile-main { padding: 0.25rem; }
+.tiles li.status-done:not(:has(button)) { background: var(--leaf); }
+.pill { display: inline-block; border-radius: 999px; padding: 0.1rem 0.7rem; font-size: 0.9rem; font-weight: 600; background: var(--paper); border: var(--edge) solid var(--line); color: var(--ink); }
 .status-started .pill, .status-skipped .pill { background: var(--sun); }
 .status-done .pill { background: var(--leaf); }
 
@@ -108,31 +114,32 @@ form { background: var(--card); border: 2px solid var(--line); border-radius: 1r
 /* Items: collected count, rewards and the character. */
 .item-progress { display: flex; align-items: center; gap: 0.75rem; margin: 0.75rem 0; }
 .item-progress ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 0.4rem; }
-.item-progress li { background: var(--card); border: 2px dashed var(--line); border-radius: 50%; padding: 0.3rem; display: flex; }
+.item-progress li { background: var(--card); border: var(--edge) dashed var(--line); border-radius: 50%; padding: 0.3rem; display: flex; }
 .item-progress li:not(.found) svg { opacity: 0.3; }
 .item-progress li.found { border-style: solid; border-color: var(--success); background: var(--sun); }
 .item-progress p { margin: 0; font-weight: 700; font-size: 1.1rem; }
 .items { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 0.6rem; }
-.items li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; background: var(--card); border: 2px solid var(--line); border-radius: 1rem; padding: 0.5rem 0.75rem; }
+.items li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.5rem 0.75rem; }
 .items li.open .item { opacity: 0.45; }
 .pieces { list-style: none; padding: 0; counter-reset: piece; }
-.pieces li { counter-increment: piece; display: flex; align-items: center; gap: 0.5rem; background: var(--card); border: 2px solid var(--line); border-radius: 0.75rem; padding: 0.4rem 0.6rem; margin: 0.4rem 0; }
+.pieces li { counter-increment: piece; display: flex; align-items: center; gap: 0.5rem; background: var(--card); border: var(--edge) solid var(--line); border-radius: 0.75rem; padding: 0.4rem 0.6rem; margin: 0.4rem 0; }
 .pieces li::before { content: counter(piece) '.'; font-weight: 700; }
 .pieces li span { flex: 1; }
 .pieces button { padding: 0.5rem 0.75rem; }
 .reward { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
-.character { display: block; width: min(100%, 12rem); height: auto; margin: 0.5rem 0; background: var(--card); border: 2px solid var(--line); border-radius: 1rem; }
-.roles { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: 0.6rem; counter-reset: role; }
-.roles li { background: var(--card); border: 2px solid var(--line); border-radius: 1rem; padding: 0.75rem 1rem; font-weight: 600; }
+.character { display: block; width: min(100%, 12rem); height: auto; margin: 0.5rem 0; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; }
+.roles { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr)); gap: 0.6rem; }
+.roles li { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.75rem 1rem; font-weight: 600; }
 
 /* The reward moment: the item pops up in front of a burst of rays. */
 .earned { position: relative; display: grid; justify-items: center; text-align: center; margin: 1rem 0; padding: 1rem; background: var(--sun); border-radius: 1.5rem; animation: item-in calc(400ms * var(--tempo)) ease-out; }
+.prize { position: relative; width: 176px; height: 176px; display: grid; place-items: center; }
 .earned .item { position: relative; }
 .earned p { position: relative; margin: 0.5rem 0 0; font-size: 1.3rem; font-weight: 700; }
-.earned .burst { position: absolute; top: -8px; left: calc(50% - 88px); width: 176px; height: 176px; animation: burst calc(1200ms * var(--tempo)) ease-out; }
+.earned .burst { position: absolute; inset: 0; width: 176px; height: 176px; animation: burst calc(1200ms * var(--tempo)) ease-out; }
 
 /* Technical details for the evaluators, below the view. */
-.tech { border-top: 2px solid var(--line); margin-top: 1rem; padding-top: 0.5rem; font-size: 0.9rem; }
+.tech { border-top: var(--edge) solid var(--line); margin-top: 1rem; padding-top: 0.5rem; font-size: 0.9rem; }
 .tech summary { cursor: pointer; min-height: 44px; padding: 0.6rem 0; box-sizing: border-box; font-weight: 600; }
 .tech ul { margin: 0; padding-left: 1.25rem; }
 .tech p { margin: 0.25rem 0; }
@@ -153,20 +160,17 @@ main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
   *, ::before, ::after { animation: none !important; }
 }
 
-/* High contrast: hard edges instead of soft surfaces. */
-:root[data-contrast='high'] .tile, :root[data-contrast='high'] .bubble, :root[data-contrast='high'] form,
-:root[data-contrast='high'] .items li, :root[data-contrast='high'] .pieces li, :root[data-contrast='high'] .roles li, :root[data-contrast='high'] .earned { border: 3px solid #000; }
 
 .demo { font-weight: 600; color: #6b3a00; }
 .groups { list-style: none; padding: 0; }
-.groups li { margin: 0.75rem 0; background: var(--card); border: 2px solid var(--line); border-radius: 1rem; padding: 0.5rem 0.75rem; }
+.groups li { margin: 0.75rem 0; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.5rem 0.75rem; }
 .indicators { list-style: none; padding: 0; }
 .raster { border-collapse: collapse; font-size: 0.85rem; margin: 0.5rem 0; width: 100%; table-layout: fixed; background: var(--card); }
 .raster caption { text-align: left; font-weight: 600; margin-bottom: 0.25rem; }
-.raster th, .raster td { border: 1px solid #555; padding: 0.3rem; vertical-align: top; text-align: left; overflow-wrap: anywhere; hyphens: auto; }
-.raster td.reached { background: #e3efe4; outline: 3px solid #2b6a2f; outline-offset: -3px; }
+.raster th, .raster td { border: 1px solid var(--muted); padding: 0.3rem; vertical-align: top; text-align: left; overflow-wrap: anywhere; hyphens: auto; }
+.raster td.reached { background: var(--leaf); outline: 3px solid var(--success); outline-offset: -3px; }
 .codes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1rem; }
-.codes li { border: 2px dashed #555; padding: 0.5rem; break-inside: avoid; }
+.codes li { border: var(--edge) dashed var(--muted); padding: 0.5rem; break-inside: avoid; }
 @media print {
   .site-header, .site-footer, button, .note { display: none; }
   body, :root { background: #fff; }

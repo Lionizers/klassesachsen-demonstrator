@@ -1,8 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
+import { GUIDE_NAME, PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import type { Puzzle } from '../src/minigames/model'
-import { axeClean, backToMap, checkIn, estimate, heading, leaveToGroup, openMapFromGroup, reachPlaceFromGroup, solveEstimate } from './helpers'
+import { axeClean, backToMap, backToStations, checkIn, estimate, heading, leaveToGroup, openMapFromGroup, reachPlaceFromGroup, reachPlaceFromMap, solveEstimate, startGroup } from './helpers'
 
 const IPAD = { width: 1024, height: 768 }
 const PHONE = { width: 360, height: 640 }
@@ -12,15 +12,15 @@ const header = (page: Page) => page.getByRole('banner')
 const tech = (page: Page) => page.getByRole('region', { name: 'Technik für Prüfer' })
 const fidelius = (page: Page) => page.locator('.fidelius').filter({ has: page.getByRole('img', { name: 'Fuchs Fidelius' }) })
 
-async function startGroup(page: Page) {
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
-  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
-}
-
-const backToStations = async (page: Page) => {
-  await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
-  await expect(heading(page, PLACE_NAME)).toBeFocused()
+/** Contrast of an element's border colour against the page background, by the WCAG formula. */
+const borderContrast = (el: Element) => {
+  const rgb = (c: string) => c.match(/[\d.]+/g)!.slice(0, 3).map(Number)
+  const lum = ([r, g, b]: number[]) => {
+    const f = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
+  }
+  const [a, b] = [lum(rgb(getComputedStyle(el).borderTopColor)), lum(rgb(getComputedStyle(document.body).backgroundColor))]
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
 }
 
 test.describe('on an iPad in landscape', () => {
@@ -36,6 +36,13 @@ test.describe('on an iPad in landscape', () => {
     await expect(menu.getByRole('button', { name: 'Lehrkräfte-Ansicht' })).toBeVisible()
     for (const detail of [/kB/, /Sync-Ziel/, /Offene Ergebnisse/]) await expect(header(page)).not.toContainText(detail)
     expect((await header(page).boundingBox())!.height).toBeLessThanOrEqual(IPAD.height * 0.15)
+    // Open settings sit below the whole menu row, outside the navigation landmark.
+    const teacher = menu.getByRole('button', { name: 'Lehrkräfte-Ansicht' })
+    const row = (await teacher.boundingBox())!.y
+    await menu.getByRole('button', { name: 'Einstellungen' }).click()
+    await expect(page.getByLabel('Hoher Kontrast')).toBeVisible()
+    expect((await teacher.boundingBox())!.y).toBe(row)
+    await expect(menu.getByLabel('Hoher Kontrast')).toHaveCount(0)
   })
 
   test('AE4: places and stations are big tiles with symbol and status; the item count is visible', async ({ page }) => {
@@ -49,6 +56,8 @@ test.describe('on an iPad in landscape', () => {
       const box = (await place.boundingBox())!
       expect(box.height).toBeGreaterThanOrEqual(72)
       expect(box.width).toBeGreaterThanOrEqual(200)
+      // A tile is a button: its edge needs 3:1 against the page.
+      expect(await place.evaluate(borderContrast)).toBeGreaterThanOrEqual(3)
     }
     await checkIn(page, PLACE_NAME, 'FUNKELFELS')
     await expect(heading(page, PLACE_NAME)).toBeFocused()
@@ -62,6 +71,8 @@ test.describe('on an iPad in landscape', () => {
     }
     await solveEstimate(page)
     await expect(page.getByText('1 von 3 Items', { exact: true })).toBeVisible()
+    // The item count is the one progress number; no second count of stations.
+    await expect(page.getByText(/Stationen geschafft\./)).toHaveCount(0)
     await backToStations(page)
     await expect(page.getByText('1 von 3 Items', { exact: true })).toBeVisible()
     await expect(stations.filter({ hasText: estimate.title.standard })).toContainText(/geschafft$/)
@@ -84,13 +95,6 @@ test('AE2: download size, sync target and queue sit in "Technik für Prüfer"', 
   await axeClean(page)
 })
 
-test('AE2: the storage hint stays visible and in a live region while the technical details are closed', async ({ page }) => {
-  await page.addInitScript(() => { StorageManager.prototype.persist = async () => false })
-  await page.goto('/')
-  await expect(tech(page).getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
-  await expect(tech(page).locator('details')).not.toHaveAttribute('open')
-})
-
 test('AE3: Fidelius greets as a figure with a speech bubble and gives the hints in it', async ({ page }) => {
   await page.goto('/')
   await expect(fidelius(page)).toBeVisible()
@@ -102,7 +106,8 @@ test('AE3: Fidelius greets as a figure with a speech bubble and gives the hints 
   await page.getByRole('button', { name: puzzle.title.standard }).click()
   await expect(heading(page, puzzle.title.standard)).toBeFocused()
   await page.getByRole('button', { name: 'Fuchs Fidelius um Hilfe bitten' }).click()
-  await expect(fidelius(page)).toContainText(puzzle.hints[0].standard)
+  // The speaker is named for screen readers, since the live region announces only what is added.
+  await expect(fidelius(page).locator('p').filter({ hasText: puzzle.hints[0].standard })).toHaveText(`${GUIDE_NAME}: ${puzzle.hints[0].standard}`)
 })
 
 /** Name and duration in ms of the running animation of every element matching `selector`. */
@@ -120,6 +125,9 @@ test('AE5: an earned item gets a big picture with a burst; slow tempo doubles it
   // Measured once it has popped up: the animation starts small.
   await moment.evaluate((el) => Promise.all(el.getAnimations({ subtree: true }).map((a) => a.finished)))
   expect((await moment.locator('svg.item').boundingBox())!.width).toBeGreaterThanOrEqual(96)
+  // The rays stay above the sentence, so its text is never drawn over them.
+  const burst = (await moment.locator('.burst').boundingBox())!
+  expect(burst.y + burst.height).toBeLessThanOrEqual((await moment.getByText(/^Du erhältst:/).boundingBox())!.y)
   const normal = await animations(page, '.earned, .earned .burst')
   expect(normal).toHaveLength(2)
   for (const a of normal) expect(a.name).not.toBe('none')
@@ -151,6 +159,21 @@ test('AE6: high contrast gives 7:1 on the open menu, the technical details and t
   await page.getByRole('button', { name: 'Lehrkräfte-Ansicht' }).click()
   await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
   await enhanced('teacher')
+  // The new surfaces of the quest: tiles, item slots, the bubble with a hint, the reward.
+  await page.getByRole('button', { name: 'Zurück zur App' }).click()
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
+  await reachPlaceFromGroup(page)
+  await enhanced('stations')
+  await page.getByRole('button', { name: puzzle.title.standard }).click()
+  await expect(heading(page, puzzle.title.standard)).toBeFocused()
+  await page.getByRole('button', { name: 'Fuchs Fidelius um Hilfe bitten' }).click()
+  await expect(fidelius(page)).toContainText(puzzle.hints[0].standard)
+  await enhanced('hint')
+  await page.getByRole('button', { name: 'Später nachholen' }).click()
+  await expect(heading(page, PLACE_NAME)).toBeFocused()
+  await solveEstimate(page)
+  await enhanced('reward')
 })
 
 test.describe('on a phone', () => {
@@ -178,7 +201,7 @@ test.describe('on a phone', () => {
     await expect(heading(page, PLACE_NAME)).toBeFocused()
     await fits('place check')
     await backToMap(page)
-    await reachPlaceFromGroupFromMap(page)
+    await reachPlaceFromMap(page)
     await fits('stations')
     await page.getByRole('button', { name: puzzle.title.standard }).click()
     await expect(heading(page, puzzle.title.standard)).toBeFocused()
@@ -201,9 +224,3 @@ test.describe('on a phone', () => {
     await fits('raster')
   })
 })
-
-async function reachPlaceFromGroupFromMap(page: Page) {
-  await checkIn(page, PLACE_NAME, 'FUNKELFELS')
-  await expect(page.getByRole('list', { name: 'Stationen' })).toBeVisible()
-  await expect(heading(page, PLACE_NAME)).toBeFocused()
-}

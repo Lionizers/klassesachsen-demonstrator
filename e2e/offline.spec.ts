@@ -119,10 +119,12 @@ test('AE3: a reopened place the group has not reached yet still asks for its che
   await expect(page.getByRole('list', { name: 'Stationen' })).toHaveCount(0)
 })
 
-test('AE6: storage persistence refused: the header asks to install the app on the home screen', async ({ page }) => {
+test('AE6: storage persistence refused: "Technik für Prüfer" asks to install the app, also while its details are closed', async ({ page }) => {
   await page.addInitScript(() => { StorageManager.prototype.persist = async () => false })
   await page.goto('/')
-  await expect(page.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
+  const tech = page.getByRole('region', { name: 'Technik für Prüfer' })
+  await expect(tech.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
+  await expect(tech.locator('details')).not.toHaveAttribute('open')
 })
 
 test('AE6: storage persistence granted: no install hint', async ({ page }) => {
