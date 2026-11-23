@@ -1,4 +1,3 @@
-import { Fragment } from 'preact'
 import { useContext, useEffect, useState } from 'preact/hooks'
 import { rolesFor, type Group, type Role } from '../group'
 import { focusHeading } from '../focus'
@@ -68,10 +67,10 @@ export function Place({ group, onBack, onCollage }: Props) {
         {alert}
         <h2 id="result-title" tabIndex={-1}>{text(result.game.title, easy)}: geschafft!</h2>
         {result.consequence && (
-          <>
+          <div class="said">
             <p>{text(result.consequence, easy)}</p>
             <ReadAloud text={text(result.consequence, easy)} />
-          </>
+          </div>
         )}
         <div class="earned">
           <div class="prize">
@@ -102,6 +101,7 @@ export function Place({ group, onBack, onCollage }: Props) {
           hintsShown={countEvents(progress, 'E5', active.id)}
           attempts={countEvents(progress, 'E3', active.id)}
           apply={apply}
+          onBack={() => show({})}
           onDone={(consequence) => {
             show({ result: { game: active, consequence } })
             if (settings.sound) playSuccessTone()
@@ -161,10 +161,11 @@ type StationProps = {
   attempts: number
   apply: Apply
   onDone: (consequence?: Text) => void
+  onBack: () => void
   onSkip: () => void
 }
 
-function Station({ game, roles, hintsShown, attempts, apply, onDone, onSkip }: StationProps) {
+function Station({ game, roles, hintsShown, attempts, apply, onDone, onBack, onSkip }: StationProps) {
   const { easy } = useContext(SettingsContext)
   const allHintsShown = hintsShown >= game.hints.length
   const attempt = (correct: boolean) => {
@@ -174,33 +175,43 @@ function Station({ game, roles, hintsShown, attempts, apply, onDone, onSkip }: S
 
   return (
     <section aria-labelledby="game-title">
-      <h2 id="game-title" tabIndex={-1}>{text(game.title, easy)}</h2>
-      <p>{text(game.prompt, easy)}</p>
-      <ReadAloud text={text(game.prompt, easy)} />
-      <p class="reward"><ItemImage art={game.item} /> Belohnung: {text(game.reward, easy)}</p>
-      {gameView()}
-      <Fidelius live>
-        {hintsShown === 0 && <p>{text(ASK_FOR_HELP, easy)}</p>}
-        {game.hints.slice(0, hintsShown).map((hint) => (
-          <Fragment key={hint.standard}>
-            {/* The live region announces only the added text, so it names the speaker. */}
-            <p><span class="visually-hidden">{GUIDE_NAME}: </span>{text(hint, easy)}</p>
-            <ReadAloud text={text(hint, easy)} />
-          </Fragment>
-        ))}
-      </Fidelius>
+      <div class="station-title">
+        <h2 id="game-title" tabIndex={-1}>{text(game.title, easy)}</h2>
+        <p class="reward pill"><ItemImage art={game.item} size={28} /> Belohnung: {text(game.reward, easy)}</p>
+        <p class="station-count">Station {GAMES.indexOf(game) + 1} von {GAMES.length}</p>
+      </div>
+      <div class="station">
+        <div>
+          <div class="said">
+            <p>{text(game.prompt, easy)}</p>
+            <ReadAloud text={text(game.prompt, easy)} />
+          </div>
+          <Fidelius live>
+            {hintsShown === 0 && <p>{text(ASK_FOR_HELP, easy)}</p>}
+            {game.hints.slice(0, hintsShown).map((hint) => (
+              <div class="said" key={hint.standard}>
+                {/* The live region announces only the added text, so it names the speaker. */}
+                <p><span class="visually-hidden">{GUIDE_NAME}: </span>{text(hint, easy)}</p>
+                <ReadAloud text={text(hint, easy)} />
+              </div>
+            ))}
+          </Fidelius>
+          {/* aria-disabled instead of disabled: a disabled button would drop the keyboard focus to body. */}
+          <button
+            type="button"
+            aria-disabled={allHintsShown}
+            onClick={() => {
+              if (!allHintsShown) apply({ type: 'hint', id: game.id, index: hintsShown, at: Date.now() })
+            }}
+          >
+            {GUIDE_NAME} um Hilfe bitten
+          </button>
+        </div>
+        <div class="play">{gameView()}</div>
+      </div>
       <div class="actions">
-        {/* aria-disabled instead of disabled: a disabled button would drop the keyboard focus to body. */}
-        <button
-          type="button"
-          aria-disabled={allHintsShown}
-          onClick={() => {
-            if (!allHintsShown) apply({ type: 'hint', id: game.id, index: hintsShown, at: Date.now() })
-          }}
-        >
-          {GUIDE_NAME} um Hilfe bitten
-        </button>
-        <button type="button" onClick={onSkip}>Später nachholen</button>
+        <button type="button" onClick={onBack}>Zurück zu {PLACE_NAME}</button>
+        <button type="button" class="text" onClick={onSkip}>Später nachholen</button>
       </div>
     </section>
   )
@@ -254,6 +265,7 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
       </ol>
       <button
         type="button"
+        class="primary"
         onClick={() => {
           const correct = isPuzzleSolved(game, order)
           // The attempt number makes a repeated failure a new text, so screen readers announce it again.
@@ -278,10 +290,15 @@ const Arrow = ({ down }: { down?: boolean }) => (
 function EstimateView({ game, attempts, attempt }: GameViewProps<Estimate>) {
   const [value, setValue] = useState('')
   const [feedback, setFeedback] = useState('')
+  const empty = value.trim() === ''
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault()
+        if (empty) {
+          setFeedback('Gebt zuerst eure Schätzung als Zahl ein.')
+          return
+        }
         const answer = Number(value)
         const correct = isEstimateCorrect(game, answer)
         setFeedback(correct ? '' : `Versuch ${attempts + 1}: Eure Schätzung ist zu ${answer > game.target ? 'hoch' : 'niedrig'}. Versucht es noch einmal!`)
@@ -289,8 +306,11 @@ function EstimateView({ game, attempts, attempt }: GameViewProps<Estimate>) {
       }}
     >
       <label for="estimate">Eure Schätzung ({game.unit})</label>
-      <input id="estimate" type="number" inputMode="numeric" value={value} onInput={(e) => setValue(e.currentTarget.value)} />
-      <button type="submit" disabled={value.trim() === ''}>Prüfen</button>
+      <div class="field-row">
+        <input id="estimate" type="number" inputMode="numeric" value={value} onInput={(e) => setValue(e.currentTarget.value)} />
+        {/* Always active: an empty field gets a hint instead of a dead button. */}
+        <button type="submit" class="primary">Prüfen</button>
+      </div>
       <p role="status">{feedback}</p>
     </form>
   )
@@ -323,9 +343,11 @@ function DilemmaView({ game, roles, apply, onDone }: DilemmaProps) {
     <div>
       <h3 aria-live="polite">Position {position + 1}: {voter} stimmt ab</h3>
       <p>Stimme {position + 1} von {roles.length}. Die anderen schauen bitte kurz weg.</p>
-      {game.options.map((option, i) => (
-        <button key={i} type="button" onClick={() => vote(i as 0 | 1)}>{text(option.label, easy)}</button>
-      ))}
+      <ul class="choices options">
+        {game.options.map((option, i) => (
+          <li key={i}><button type="button" onClick={() => vote(i as 0 | 1)}>{text(option.label, easy)}</button></li>
+        ))}
+      </ul>
     </div>
   )
 }

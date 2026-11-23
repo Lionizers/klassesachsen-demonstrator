@@ -57,6 +57,16 @@ test('AE2/AE3: an estimate just outside is retried, exactly on the boundary is a
   await expect(page.getByText(`Du erhältst: ${estimate.reward.standard}`)).toBeVisible()
 })
 
+test('an empty estimate is not an attempt: "Prüfen" says what is missing', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, estimate.title.standard).click()
+  await expect(heading(page, estimate.title.standard)).toBeFocused()
+  await page.getByRole('button', { name: 'Prüfen' }).click()
+  await expect(page.getByRole('main').getByRole('status')).toHaveText('Gebt zuerst eure Schätzung als Zahl ein.')
+  const stored = (await readKey(page, MINIGAMES_KEY)) as Progress
+  expect(stored.events.filter((e) => e.code === 'E3' && e.minigameId === estimate.id)).toEqual([])
+})
+
 test('AE4: every role votes on the device and the result is a consequence, not a verdict', async ({ page }) => {
   await enterPlace(page)
   await station(page, dilemma.title.standard).click()
@@ -154,7 +164,9 @@ test('hints are announced, capped at the number of hints, and keep the focus', a
   await page.getByRole('button', { name: hintButton }).focus()
   for (let i = 0; i <= puzzle.hints.length; i++) await page.keyboard.press('Enter')
   await expect(page.getByText(puzzle.hints.at(-1)!.standard)).toBeVisible()
-  await expect(page.getByText(puzzle.hints[0].standard).locator('..')).toHaveAttribute('aria-live', 'polite')
+  // The nearest live region around the hint is Fidelius' bubble, so the hint is announced as his.
+  await expect(page.getByText(puzzle.hints[0].standard).locator('xpath=ancestor::*[@aria-live][1]')).toHaveAttribute('aria-live', 'polite')
+  await expect(page.getByText(puzzle.hints[0].standard).locator('xpath=ancestor::*[@aria-live][1]')).toHaveClass(/\bbubble\b/)
   await expect(page.locator('body')).not.toBeFocused()
   await expect(page.getByRole('button', { name: hintButton })).toBeFocused()
   await expect.poll(async () => {

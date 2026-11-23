@@ -67,7 +67,8 @@ export function ReadAloud({ text: content }: { text?: string }) {
     <>
       <button
         type="button"
-        class="read-aloud"
+        // A text of its own makes it a symbol next to that text; the view reader in the menu keeps its word.
+        class={content ? 'read-aloud icon' : 'read-aloud'}
         aria-label={content && `${content} vorlesen`}
         onClick={() => {
           setNotice(undefined)
@@ -78,7 +79,7 @@ export function ReadAloud({ text: content }: { text?: string }) {
           <path d="M3 9v6h4l5 5V4L7 9z" fill="currentColor" />
           <path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" />
         </svg>
-        <span class="label">Vorlesen</span>
+        {!content && <span class="label">Vorlesen</span>}
       </button>
       {notice && <p role="alert">{notice}</p>}
     </>
