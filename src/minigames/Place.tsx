@@ -236,16 +236,50 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
   const { easy } = useContext(SettingsContext)
   const [order, setOrder] = useState(() => game.pieces.map((_, i) => i))
   const [message, setMessage] = useState('')
+  const [drag, setDrag] = useState<{ from: number; over?: number }>()
+  /** Takes the piece at `i` out and puts it in at `j`; returns its label. */
+  const place = (i: number, j: number, next: number[]) => {
+    setOrder(next)
+    const label = text(game.pieces[order[i]], easy)
+    setMessage(`„${label}“ jetzt an Stelle ${j + 1}.`)
+    return label
+  }
   const move = (i: number, j: number) => {
     if (j < 0 || j >= order.length) return
     const next = [...order]
     ;[next[i], next[j]] = [next[j], next[i]]
-    setOrder(next)
-    const label = text(game.pieces[order[i]], easy)
-    setMessage(`„${label}“ jetzt an Stelle ${j + 1}.`)
+    const label = place(i, j, next)
     // Reordering the list can move the focused button out of the DOM; keep the focus on the moved piece.
     const direction = j < i ? 'nach oben' : 'nach unten'
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[aria-label="${label} ${direction}"]`)?.focus())
+  }
+
+  /**
+   * Listens on the window, so the drag goes on when finger or mouse leave the grip.
+   * Registered right in pointerdown: an effect would come a render late and miss a quick release.
+   */
+  const startDrag = (from: number) => {
+    const at = (e: PointerEvent) => {
+      const li = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.pieces li')
+      return li ? Number(li.dataset.index) : undefined
+    }
+    const onMove = (e: PointerEvent) => setDrag({ from, over: at(e) })
+    const end = (e?: PointerEvent) => {
+      removeEventListener('pointermove', onMove)
+      removeEventListener('pointerup', end)
+      removeEventListener('pointercancel', cancel)
+      setDrag(undefined)
+      const j = e && at(e)
+      if (j === undefined || j === from) return
+      const next = [...order]
+      next.splice(j, 0, ...next.splice(from, 1))
+      place(from, j, next)
+    }
+    const cancel = () => end()
+    addEventListener('pointermove', onMove)
+    addEventListener('pointerup', end)
+    addEventListener('pointercancel', cancel)
+    setDrag({ from, over: from })
   }
 
   return (
@@ -254,7 +288,22 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
         {order.map((piece, i) => {
           const label = text(game.pieces[piece], easy)
           return (
-            <li key={piece}>
+            <li
+              key={piece}
+              data-index={i}
+              class={drag?.from === i ? 'dragging' : drag && drag.over === i ? 'target' : undefined}
+            >
+              {/* Pointer only: the arrows are the way without dragging (WCAG 2.5.7), so the grip stays out of the tab order and the reading. */}
+              <span
+                class="grip"
+                aria-hidden="true"
+                onPointerDown={(e) => {
+                  e.preventDefault()
+                  startDrag(i)
+                }}
+              >
+                <svg viewBox="0 0 16 16" width="20" height="20"><path d="M5 3h2v2H5zm4 0h2v2H9zM5 7h2v2H5zm4 0h2v2H9zm-4 4h2v2H5zm4 0h2v2H9z" fill="currentColor" /></svg>
+              </span>
               <span>{label}</span>{' '}
               {/* aria-disabled instead of disabled: the focused button must stay focusable at the edge. */}
               <button type="button" aria-label={`${label} nach oben`} aria-disabled={i === 0} onClick={() => move(i, i - 1)}><Arrow /></button>{' '}
