@@ -126,7 +126,7 @@ form { background: var(--card); border: var(--edge) solid var(--line); border-ra
 @media (max-width: 40rem) {
   .station { grid-template-columns: 1fr; }
   /* The grip and two arrows leave little width for a piece on a phone. */
-  .play { padding: var(--s3); }
+  .play:has(.pieces) { padding: var(--s3); }
   .pieces li { gap: var(--s1); padding-left: 0; }
 }
 

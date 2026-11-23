@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'preact/hooks'
+import { useContext, useEffect, useRef, useState } from 'preact/hooks'
 import { rolesFor, type Group, type Role } from '../group'
 import { focusHeading } from '../focus'
 import { load, save } from '../store/db'
@@ -237,49 +237,68 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
   const [order, setOrder] = useState(() => game.pieces.map((_, i) => i))
   const [message, setMessage] = useState('')
   const [drag, setDrag] = useState<{ from: number; over?: number }>()
-  /** Takes the piece at `i` out and puts it in at `j`; returns its label. */
-  const place = (i: number, j: number, next: number[]) => {
+  // The latest order for handlers that outlive their render, so a drop never undoes an arrow press made meanwhile.
+  const current = useRef(order)
+  current.current = order
+  const stopDrag = useRef<() => void>()
+  useEffect(() => () => stopDrag.current?.(), [])
+
+  /** Takes the piece at `i` out, puts it in at `j` and says where it is now; returns its label. */
+  const place = (i: number, j: number) => {
+    const next = [...current.current]
+    next.splice(j, 0, ...next.splice(i, 1))
+    const label = text(game.pieces[current.current[i]], easy)
+    current.current = next
     setOrder(next)
-    const label = text(game.pieces[order[i]], easy)
     setMessage(`„${label}“ jetzt an Stelle ${j + 1}.`)
     return label
   }
   const move = (i: number, j: number) => {
     if (j < 0 || j >= order.length) return
-    const next = [...order]
-    ;[next[i], next[j]] = [next[j], next[i]]
-    const label = place(i, j, next)
+    const label = place(i, j)
     // Reordering the list can move the focused button out of the DOM; keep the focus on the moved piece.
     const direction = j < i ? 'nach oben' : 'nach unten'
     requestAnimationFrame(() => document.querySelector<HTMLElement>(`[aria-label="${label} ${direction}"]`)?.focus())
   }
 
   /**
-   * Listens on the window, so the drag goes on when finger or mouse leave the grip.
+   * Follows one pointer on the window, so the drag goes on when finger or mouse leave the grip.
    * Registered right in pointerdown: an effect would come a render late and miss a quick release.
+   * Other pointers (a second finger, a palm on a shared iPad) are ignored.
    */
-  const startDrag = (from: number) => {
-    const at = (e: PointerEvent) => {
-      const li = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>('.pieces li')
+  const startDrag = (e: PointerEvent, piece: number) => {
+    if (stopDrag.current || !e.isPrimary || e.button !== 0) return
+    const from = () => current.current.indexOf(piece)
+    const at = (ev: PointerEvent) => {
+      const li = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>('.pieces li')
       return li ? Number(li.dataset.index) : undefined
     }
-    const onMove = (e: PointerEvent) => setDrag({ from, over: at(e) })
-    const end = (e?: PointerEvent) => {
-      removeEventListener('pointermove', onMove)
-      removeEventListener('pointerup', end)
-      removeEventListener('pointercancel', cancel)
-      setDrag(undefined)
-      const j = e && at(e)
-      if (j === undefined || j === from) return
-      const next = [...order]
-      next.splice(j, 0, ...next.splice(from, 1))
-      place(from, j, next)
+    let over: number | undefined = from()
+    const mine = (ev: PointerEvent) => ev.pointerId === e.pointerId
+    const onMove = (ev: PointerEvent) => {
+      if (!mine(ev) || at(ev) === over) return
+      over = at(ev)
+      setDrag({ from: from(), over })
     }
-    const cancel = () => end()
+    const onUp = (ev: PointerEvent) => {
+      if (!mine(ev)) return
+      stop()
+      const j = at(ev)
+      if (j !== undefined && j !== from()) place(from(), j)
+    }
+    const onCancel = (ev: PointerEvent) => mine(ev) && stop()
+    const stop = () => {
+      removeEventListener('pointermove', onMove)
+      removeEventListener('pointerup', onUp)
+      removeEventListener('pointercancel', onCancel)
+      stopDrag.current = undefined
+      setDrag(undefined)
+    }
     addEventListener('pointermove', onMove)
-    addEventListener('pointerup', end)
-    addEventListener('pointercancel', cancel)
-    setDrag({ from, over: from })
+    addEventListener('pointerup', onUp)
+    addEventListener('pointercancel', onCancel)
+    stopDrag.current = stop
+    setDrag({ from: from(), over })
   }
 
   return (
@@ -299,7 +318,7 @@ function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
                 aria-hidden="true"
                 onPointerDown={(e) => {
                   e.preventDefault()
-                  startDrag(i)
+                  startDrag(e, piece)
                 }}
               >
                 <svg viewBox="0 0 16 16" width="20" height="20"><path d="M5 3h2v2H5zm4 0h2v2H9zM5 7h2v2H5zm4 0h2v2H9zm-4 4h2v2H5zm4 0h2v2H9z" fill="currentColor" /></svg>
