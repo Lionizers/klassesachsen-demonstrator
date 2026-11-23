@@ -38,6 +38,11 @@ label { font-weight: 600; display: block; margin-top: 1rem; }
 .character { display: block; width: min(100%, 10rem); height: auto; margin: 0.5rem 0; }
 button[aria-pressed='true'] { background: var(--brand); color: #fff; }
 .offline-status { margin-top: 0.5rem; font-size: 0.9rem; }
+fieldset { border: 2px solid #555; border-radius: 0.4rem; margin: 0.5rem 0; }
+.check { font-weight: normal; margin-top: 0.25rem; }
+.check input, input[type='range'] { display: inline-block; width: auto; min-height: 0; margin-right: 0.5rem; }
+input[type='range'] { display: block; width: min(100%, 24rem); border: 0; padding: 0; }
+.collage { display: block; width: min(100%, 24rem); height: auto; margin: 0.5rem 0; border: 2px solid var(--brand); }
 .offline-status p { margin: 0; }
 
 .read-aloud { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0.25rem 0; }

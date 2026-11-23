@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: Demonstrator-Simulation – Bildbeiträge
+  version: 1.0.0
+  description: |
+    Schnittstelle für die Bildbeiträge der Gruppen (Item-Collagen).
+    Im Demonstrator gibt es keinen Server: Der Service Worker der App beantwortet diese Pfade
+    aus dem Speicher des Geräts. Die Schnittstelle antwortet deshalb erst, wenn die App einmal
+    geladen und ihr Service Worker installiert ist, und nur auf diesem Gerät.
+    Jede Antwort trägt den Header `X-Demonstrator: simulation`.
+    Es erscheinen nur Beiträge, die eine Lehrkraft freigegeben hat.
+servers:
+  - url: /
+paths:
+  /api/beitraege:
+    get:
+      summary: Freigegebene Beiträge (nur Metadaten)
+      responses:
+        '200':
+          description: Liste der freigegebenen Beiträge
+          headers:
+            X-Demonstrator: { $ref: '#/components/headers/Simulation' }
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Beitrag' }
+  /api/beitraege/{id}.png:
+    get:
+      summary: Bild eines freigegebenen Beitrags, PNG 2048 × 2048 px
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Bild
+          headers:
+            X-Demonstrator: { $ref: '#/components/headers/Simulation' }
+          content:
+            image/png: {}
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/beitraege/{id}.webp:
+    get:
+      summary: Vorschau 512 × 512 px als WebP
+      description: Gibt es nur, wenn der Browser beim Speichern WebP erzeugen konnte; sonst `.jpg`.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Vorschau
+          headers:
+            X-Demonstrator: { $ref: '#/components/headers/Simulation' }
+          content:
+            image/webp: {}
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/beitraege/{id}.jpg:
+    get:
+      summary: Vorschau 512 × 512 px als JPEG
+      description: Ersatz für Browser ohne WebP-Encoder.
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: Vorschau
+          headers:
+            X-Demonstrator: { $ref: '#/components/headers/Simulation' }
+          content:
+            image/jpeg: {}
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/export.zip:
+    get:
+      summary: Gesamtexport aller freigegebenen Beiträge
+      description: |
+        ZIP ohne Kompression mit `beitraege.json` (Liste) und je Beitrag `{id}.json`, `{id}.png`
+        und der Vorschau `{id}.webp` oder `{id}.jpg`.
+      responses:
+        '200':
+          description: ZIP-Archiv
+          headers:
+            X-Demonstrator: { $ref: '#/components/headers/Simulation' }
+          content:
+            application/zip: {}
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  headers:
+    Simulation:
+      description: Kennzeichnet die Antwort als Simulation des Demonstrators.
+      schema: { type: string, const: simulation }
+  responses:
+    NotFound:
+      description: Unbekannt oder nicht freigegeben
+      headers:
+        X-Demonstrator: { $ref: '#/components/headers/Simulation' }
+  schemas:
+    Beitrag:
+      type: object
+      additionalProperties: false
+      required: [id, createdAt, type, items]
+      description: Enthält keinen Gruppennamen und keine Angaben zu Personen.
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        type: { type: string, const: item-collage }
+        items:
+          type: array
+          description: Kennungen der verwendeten Items
+          items: { type: string }

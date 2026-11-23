@@ -1,9 +1,7 @@
-import type { ItemArt } from '../minigames/model'
+import { ITEM_BOX, type ItemArt } from '../minigames/model'
 
 type Paths = ItemArt['paths']
 
-/** Item art is drawn in an ITEM_BOX square; `at` places that square on the character. */
-export const ITEM_BOX = 32
 export const CHARACTER_VIEWBOX = '0 0 112 128'
 
 // Drawn with the same path data as the items, so worn items line up with their `at` box.

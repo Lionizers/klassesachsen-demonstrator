@@ -26,6 +26,21 @@ npm run build
 npm run preview      # http://localhost:4173
 ```
 
+## Schnittstelle für Bildbeiträge (Simulation)
+
+Nach der finalen Quest gestaltet eine Gruppe in der Sammlung eine Collage aus ihren Items und speichert sie
+(PNG 2048 × 2048 px, Vorschau 512 px als WebP, ersatzweise JPEG). Freigegebene Beiträge stehen unter `/api/` bereit,
+beschrieben in [`public/openapi.yaml`](public/openapi.yaml) (ausgeliefert unter `/openapi.yaml`):
+
+- `GET /api/beitraege`: Metadaten (Kennung, Zeitpunkt, Art `item-collage`, Items), kein Gruppenname
+- `GET /api/beitraege/{id}.png` und `.webp` bzw. `.jpg`
+- `GET /api/export.zip`: Gesamtexport
+
+Es gibt keinen Server: Der Service Worker beantwortet diese Pfade aus dem Speicher des Geräts und kennzeichnet jede
+Antwort mit `X-Demonstrator: simulation`. Die Schnittstelle antwortet deshalb erst, wenn die App einmal geladen ist,
+und nur im Produktions-Build (`npm run build && npm run preview`). Bis die Lehrkraft einen Beitrag freigibt, bleibt
+die Liste leer.
+
 ## Prüfen
 
 ```bash

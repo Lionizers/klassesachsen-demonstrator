@@ -1,0 +1,195 @@
+import { test, expect, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
+import { MINIGAMES_KEY, type Progress, type StationStatus } from '../src/minigames/progress'
+import { CONTRIBUTIONS_KEY, type Contribution } from '../src/collage/layout'
+import { FAIL_PUT, failPut } from './fail-put'
+import { heading, readStored, writeStored } from './helpers'
+
+const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
+const names = burgFunkelfels.map((g) => g.reward.standard)
+const LOCKED = `Die Collage öffnet sich, wenn ihr alle Stationen bei ${PLACE_NAME} geschafft habt.`
+
+const collage = (page: Page) => page.getByRole('region', { name: 'Collage' })
+const canvas = (page: Page) => collage(page).getByRole('img', { name: /^Collage aus:/ })
+const save = (page: Page) => collage(page).getByRole('button', { name: 'Collage speichern' })
+const saved = (page: Page) => collage(page).getByRole('status')
+
+/** Group screen, then `status` for the first station and done for the rest, then the collection. */
+async function openCollage(page: Page, first: StationStatus = 'done') {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await expect(heading(page, 'Gruppe Otter')).toBeFocused()
+  const progress: Progress = {
+    status: Object.fromEntries(burgFunkelfels.map((g, i) => [g.id, i === 0 ? first : 'done'])),
+    events: [],
+  }
+  await writeStored(page, MINIGAMES_KEY, (_, value) => value, progress)
+  await page.getByRole('button', { name: 'Sammlung', exact: true }).click()
+  await expect(heading(page, 'Sammlung')).toBeFocused()
+}
+
+/** A downscaled copy of the canvas: enough to tell two pictures apart. */
+const fingerprint = (page: Page) =>
+  canvas(page).evaluate((c: HTMLCanvasElement) => {
+    const small = document.createElement('canvas')
+    small.width = small.height = 64
+    small.getContext('2d')!.drawImage(c, 0, 0, 64, 64)
+    return small.toDataURL()
+  })
+
+async function exportCollage(page: Page) {
+  await save(page).click()
+  await expect(saved(page)).toHaveText('Gespeichert. Die Lehrkraft kann den Beitrag freigeben.')
+}
+
+const describeStored = (page: Page) =>
+  readStored(page, CONTRIBUTIONS_KEY, async (list: Contribution[]) =>
+    Promise.all(
+      list.map(async (c) => {
+        const png = await createImageBitmap(c.png)
+        const preview = await createImageBitmap(c.preview)
+        return { keys: Object.keys(c), items: c.items, type: c.type, released: c.released, png: [c.png.type, png.width, png.height], preview: [c.preview.type, preview.width, preview.height], text: JSON.stringify(c) }
+      }),
+    ),
+  )
+
+/** Fetches through the service worker, which only answers once it controls the page. */
+const api = (page: Page, path: string) =>
+  page.evaluate(async (p) => {
+    if (!navigator.serviceWorker.controller) {
+      await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }))
+    }
+    const response = await fetch(p)
+    const type = response.headers.get('Content-Type') ?? ''
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    return {
+      status: response.status,
+      type,
+      simulation: response.headers.get('X-Demonstrator'),
+      head: Array.from(bytes.slice(0, 4)),
+      json: type.startsWith('application/json') ? JSON.parse(new TextDecoder().decode(bytes)) : undefined,
+    }
+  }, path)
+
+const release = (page: Page) =>
+  writeStored(page, CONTRIBUTIONS_KEY, (list: Contribution[] | undefined) => list!.map((c) => ({ ...c, released: true })))
+
+test('AE1: before every station is done the collage is locked with an explanation', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Gruppe Otter' }).click()
+  await page.getByRole('button', { name: 'Sammlung', exact: true }).click()
+  await expect(heading(page, 'Sammlung')).toBeFocused()
+  await expect(collage(page)).toContainText(LOCKED)
+  await expect(collage(page).locator('canvas')).toHaveCount(0)
+  await expect(save(page)).toHaveCount(0)
+})
+
+test('AE1: a skipped station keeps the collage locked', async ({ page }) => {
+  await openCollage(page, 'skipped')
+  await expect(collage(page)).toContainText(LOCKED)
+  await expect(collage(page).locator('canvas')).toHaveCount(0)
+})
+
+test('AE2: after the final quest items and sliders change the picture at once', async ({ page }) => {
+  await openCollage(page)
+  await expect(canvas(page)).toHaveAccessibleName(`Collage aus: ${names.join(', ')}`)
+  let before = await fingerprint(page)
+  for (const [label, value, text] of [['Anordnung', '2', 'Verstreut'], ['Größe', '0', 'klein'], ['Farbstimmung', '2', 'Nacht']]) {
+    const slider = collage(page).getByRole('slider', { name: label })
+    await slider.fill(value)
+    await expect(slider).toHaveAttribute('aria-valuetext', text)
+    await expect.poll(() => fingerprint(page), label).not.toBe(before)
+    before = await fingerprint(page)
+  }
+  await collage(page).getByRole('checkbox', { name: names[0] }).uncheck()
+  await expect(canvas(page)).toHaveAccessibleName(`Collage aus: ${names.slice(1).join(', ')}`)
+  await expect.poll(() => fingerprint(page)).not.toBe(before)
+  await expect(collage(page).getByText('Otter')).toHaveCount(0)
+  const result = await new AxeBuilder({ page }).include('section[aria-labelledby="collage-title"]').withTags(WCAG).analyze()
+  expect(result.violations).toEqual([])
+})
+
+test('AE3/AE4/AE5: the export is a 2048 px PNG with a 512 px WebP preview and metadata without the group name', async ({ page }) => {
+  await openCollage(page)
+  await exportCollage(page)
+  const [stored] = await describeStored(page)
+  expect(stored.png).toEqual(['image/png', 2048, 2048])
+  expect(stored.preview).toEqual(['image/webp', 512, 512])
+  expect(stored.keys.sort()).toEqual(['createdAt', 'id', 'items', 'png', 'preview', 'released', 'type'])
+  expect(stored).toMatchObject({ type: 'item-collage', items: burgFunkelfels.map((g) => g.id), released: false })
+  expect(stored.text).not.toMatch(/Otter/)
+  await expect(collage(page).getByRole('link', { name: 'PNG herunterladen' })).toHaveAttribute('download', /\.png$/)
+})
+
+test('AE3: a browser without WebP encoding gets a JPEG preview', async ({ page }) => {
+  await page.addInitScript(() => {
+    const toBlob = HTMLCanvasElement.prototype.toBlob
+    HTMLCanvasElement.prototype.toBlob = function (callback, type, quality) {
+      // Like Safari before 17: an unsupported type silently becomes PNG.
+      toBlob.call(this, callback, type === 'image/webp' ? 'image/png' : type, quality)
+    }
+  })
+  await openCollage(page)
+  await exportCollage(page)
+  const [stored] = await describeStored(page)
+  expect(stored.preview).toEqual(['image/jpeg', 512, 512])
+})
+
+test('AE6/AE9: only released contributions appear in the interface and the zip export', async ({ page }) => {
+  await openCollage(page)
+  await exportCollage(page)
+  expect(await api(page, '/api/beitraege')).toMatchObject({ status: 200, simulation: 'simulation', json: [] })
+  const [{ id }] = await readStored(page, CONTRIBUTIONS_KEY, (list: Contribution[]) => list.map((c) => ({ id: c.id })))
+  expect(await api(page, `/api/beitraege/${id}.png`)).toMatchObject({ status: 404 })
+
+  await release(page)
+  const list = await api(page, '/api/beitraege')
+  expect(list.json).toEqual([{ id, createdAt: expect.any(String), type: 'item-collage', items: burgFunkelfels.map((g) => g.id) }])
+  expect(await api(page, `/api/beitraege/${id}.png`)).toMatchObject({ status: 200, type: 'image/png', head: [137, 80, 78, 71] })
+  expect(await api(page, `/api/beitraege/${id}.webp`)).toMatchObject({ status: 200, type: 'image/webp' })
+  expect(await api(page, '/api/export.zip')).toMatchObject({ status: 200, type: 'application/zip', simulation: 'simulation', head: [0x50, 0x4b, 3, 4] })
+  // Opened as a page, the path must reach the interface, not the app shell.
+  const opened = await page.goto('/api/beitraege')
+  expect(await opened!.json()).toEqual(list.json)
+})
+
+test('AE9: the interface is documented as OpenAPI', async ({ page }) => {
+  const response = await page.request.get('/openapi.yaml')
+  expect(response.status()).toBe(200)
+  const text = await response.text()
+  expect(text).toMatch(/^openapi: 3\./m)
+  expect(text).toContain('Demonstrator-Simulation')
+  for (const path of ['/api/beitraege:', '/api/beitraege/{id}.png:', '/api/export.zip:']) expect(text).toContain(path)
+})
+
+test('AE7: a collage with only one item is a valid picture', async ({ page }) => {
+  await openCollage(page)
+  for (const name of names.slice(1)) await collage(page).getByRole('checkbox', { name }).uncheck()
+  await expect(canvas(page)).toHaveAccessibleName(`Collage aus: ${names[0]}`)
+  await exportCollage(page)
+  const [stored] = await describeStored(page)
+  expect(stored.png).toEqual(['image/png', 2048, 2048])
+  expect(stored.items).toEqual([burgFunkelfels[0].id])
+})
+
+test('AE8: without a chosen item there is an explanation instead of an empty picture', async ({ page }) => {
+  await openCollage(page)
+  for (const name of names) await collage(page).getByRole('checkbox', { name }).uncheck()
+  await expect(collage(page)).toContainText('Wählt mindestens ein Item aus, dann entsteht die Collage.')
+  await expect(collage(page).locator('canvas')).toHaveCount(0)
+  await expect(save(page)).toBeDisabled()
+})
+
+test('a failed save is reported and the next export works', async ({ page }) => {
+  await page.addInitScript(FAIL_PUT)
+  await openCollage(page)
+  await failPut(page, CONTRIBUTIONS_KEY)
+  await save(page).click()
+  await expect(collage(page).getByRole('alert')).toHaveText('Der Beitrag konnte nicht gespeichert werden.')
+  await expect(collage(page).getByRole('link', { name: 'PNG herunterladen' })).toHaveCount(0)
+  await failPut(page, false)
+  await exportCollage(page)
+  await expect(collage(page).getByRole('alert')).toHaveCount(0)
+  expect(await describeStored(page)).toHaveLength(1)
+})

@@ -82,3 +82,43 @@ export function dumpStore(page: Page) {
 export async function readKey(page: Page, key: string): Promise<unknown> {
   return (await dumpStore(page))[key]
 }
+
+/**
+ * Runs `fn(stored value, arg)` inside the page, where Blobs stay Blobs; with `write` its result replaces the value.
+ * `fn` travels as source text, so it must not close over test variables: hand them over as `arg`.
+ */
+function inStore(page: Page, key: string, fn: (value: never, arg: never) => unknown, arg: unknown, write: boolean) {
+  return page.evaluate(
+    async ([db, storeName, k, src, a, w]) => {
+      const conn = await new Promise<IDBDatabase>((resolve, reject) => {
+        const open = indexedDB.open(db)
+        open.onsuccess = () => resolve(open.result)
+        open.onerror = () => reject(open.error)
+      })
+      const get = conn.transaction(storeName).objectStore(storeName).get(k)
+      const old = await new Promise((resolve, reject) => {
+        get.onsuccess = () => resolve(get.result)
+        get.onerror = () => reject(get.error)
+      })
+      const result = await (0, eval)(`(${src})`)(old, a)
+      if (w) {
+        await new Promise((resolve, reject) => {
+          const tx = conn.transaction(storeName, 'readwrite')
+          tx.objectStore(storeName).put(result, k)
+          tx.oncomplete = resolve
+          tx.onerror = () => reject(tx.error)
+        })
+      }
+      conn.close()
+      return w ? undefined : result
+    },
+    [DB_NAME, STORE, key, fn.toString(), arg as string, write] as const,
+  )
+}
+
+export const readStored = <T, R>(page: Page, key: string, fn: (value: T) => R | Promise<R>) =>
+  inStore(page, key, fn as never, undefined, false) as Promise<R>
+
+/** Call it once the app has opened its database, or the store does not exist yet. */
+export const writeStored = <T, A>(page: Page, key: string, fn: (old: T | undefined, arg: A) => unknown, arg?: A) =>
+  inStore(page, key, fn as never, arg, true)
