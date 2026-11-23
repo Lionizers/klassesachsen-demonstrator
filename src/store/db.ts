@@ -1,5 +1,7 @@
 export const DB_NAME = 'klassesachsen'
 export const STORE = 'kv'
+/** Fired on window after a save committed; `detail` is the key. */
+export const KV_SAVED = 'kv-saved'
 
 let connection: Promise<IDBDatabase> | undefined
 
@@ -30,7 +32,10 @@ export async function save(key: string, value: unknown): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readwrite')
     tx.objectStore(STORE).put(value, key)
-    tx.oncomplete = () => resolve()
+    tx.oncomplete = () => {
+      dispatchEvent(new CustomEvent(KV_SAVED, { detail: key }))
+      resolve()
+    }
     tx.onerror = () => reject(tx.error)
     // Quota errors abort the transaction without an error event on it.
     tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'))

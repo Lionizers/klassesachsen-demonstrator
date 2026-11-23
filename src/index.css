@@ -36,3 +36,5 @@ label { font-weight: 600; display: block; margin-top: 1rem; }
 .reward { display: flex; align-items: center; gap: 0.5rem; }
 .character { display: block; width: min(100%, 10rem); height: auto; margin: 0.5rem 0; }
 button[aria-pressed='true'] { background: var(--brand); color: #fff; }
+.offline-status { margin-top: 0.5rem; font-size: 0.9rem; }
+.offline-status p { margin: 0; }

@@ -1,6 +1,8 @@
 import type { Minigame } from './model'
 
 export const MINIGAMES_KEY = 'minigames'
+/** The sync cursor over these events, see offline.tsx. */
+export const SYNC_KEY = 'sync'
 
 export type StationStatus = 'open' | 'skipped' | 'done'
 
@@ -8,6 +10,7 @@ export type StationStatus = 'open' | 'skipped' | 'done'
  * Group-level events only: no role, no person, no individual vote.
  * `value` per code: E1 'start' | 'end', E2 'done' | 'skipped', E3 attempt number,
  * E4 chosen option index, E5 hint number, E7 role position (1-3) of one input, E8 none.
+ * E10 (last sync time) lives with the sync cursor, see offline.tsx.
  * E6 and E9 are not stored: no minigame shows a change of approach, and active time follows from the E1 pair.
  */
 export type GameEvent = {
