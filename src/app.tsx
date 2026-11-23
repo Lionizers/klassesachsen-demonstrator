@@ -9,6 +9,7 @@ import { GroupStart } from './screens/GroupStart'
 import { GroupRoles } from './screens/GroupRoles'
 import { PlaceMap } from './screens/PlaceMap'
 import { Collection } from './screens/Collection'
+import { Teacher, purgeExpired } from './screens/Teacher'
 import { SCREEN_KEY, type Screen, type ScreenProps } from './screens/types'
 
 const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
@@ -16,6 +17,7 @@ const screens: Record<Screen, FunctionComponent<ScreenProps>> = {
   roles: GroupRoles,
   map: PlaceMap,
   collection: Collection,
+  teacher: Teacher,
 }
 
 export function App() {
@@ -23,17 +25,22 @@ export function App() {
   const [group, setGroup] = useState<Group>()
   const [error, setError] = useState<string>()
   const [settings, setSettings] = useState<Settings>(DEFAULTS)
+  const [purgeError, setPurgeError] = useState(false)
 
   useEffect(() => {
-    Promise.all([load<Group>(GROUP_KEY), load<string>(SCREEN_KEY), load<Settings>(SETTINGS_KEY)]).then(
-      ([stored, last, storedSettings]) => {
-        setSettings({ ...DEFAULTS, ...storedSettings })
-        setGroup(stored)
-        // The stored name may be from a version with other screens.
-        setScreen(!stored ? 'start' : last && Object.hasOwn(screens, last) ? (last as Screen) : 'roles')
-      },
-      () => setError('Der Speicher dieses Geräts ist nicht verfügbar.'),
-    )
+    // A failed retention check must not lock the group out of its game; it is reported instead.
+    purgeExpired(Date.now())
+      .catch(() => setPurgeError(true))
+      .then(() => Promise.all([load<Group>(GROUP_KEY), load<string>(SCREEN_KEY), load<Settings>(SETTINGS_KEY)]))
+      .then(
+        ([stored, last, storedSettings]) => {
+          setSettings({ ...DEFAULTS, ...storedSettings })
+          setGroup(stored)
+          // The stored name may be from a version with other screens.
+          setScreen(!stored ? 'start' : last && Object.hasOwn(screens, last) ? (last as Screen) : 'roles')
+        },
+        () => setError('Der Speicher dieses Geräts ist nicht verfügbar.'),
+      )
   }, [])
 
   useEffect(() => {
@@ -55,6 +62,8 @@ export function App() {
         <h1>Demonstrator der Lionizers GmbH</h1>
         <p>Ortsbasierte Lern- und Entdecker-App für Schulklassen · Web-App, installierbar und offline nutzbar</p>
         <OfflineStatus />
+        {purgeError && <p role="alert">Abgelaufene Gruppendaten konnten nicht gelöscht werden.</p>}
+        <button type="button" onClick={() => go('teacher')}>Lehrkräfte-Ansicht</button>
         <ReadAloud />
         <SettingsPanel settings={settings} onChange={setSettings} />
       </header>

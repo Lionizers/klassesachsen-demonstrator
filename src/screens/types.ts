@@ -4,9 +4,9 @@ import type { Group } from '../group'
 export const SCREEN_KEY = 'screen'
 export const PLACE_KEY = 'place'
 
-export type Screen = 'start' | 'roles' | 'map' | 'collection'
+export type Screen = 'start' | 'roles' | 'map' | 'collection' | 'teacher'
 export type ScreenProps = {
   go: (screen: Screen) => void
   group: Group | undefined
-  setGroup: (group: Group) => void
+  setGroup: (group: Group | undefined) => void
 }

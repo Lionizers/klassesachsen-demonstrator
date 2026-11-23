@@ -27,6 +27,18 @@ export async function load<T>(key: string): Promise<T | undefined> {
   })
 }
 
+/** Deletes all `keys` in one transaction: either all of them are gone or none. */
+export async function remove(keys: readonly string[]): Promise<void> {
+  const db = await open()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    for (const key of keys) tx.objectStore(STORE).delete(key)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+    tx.onabort = () => reject(tx.error ?? new Error('transaction aborted'))
+  })
+}
+
 export async function save(key: string, value: unknown): Promise<void> {
   const db = await open()
   return new Promise((resolve, reject) => {

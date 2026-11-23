@@ -22,3 +22,6 @@ export function validateName(name: string): string | null {
   if (trimmed.length > MAX_NAME_LENGTH) return `Der Gruppenname darf höchstens ${MAX_NAME_LENGTH} Zeichen haben.`
   return null
 }
+/** A start code is a suggested name in capitals, so an own name, which could be a child's, cannot be started by code. */
+export const startCode = (name: string) => name.toUpperCase()
+export const nameForCode = (code: string) => SUGGESTED_NAMES.find((n) => startCode(n) === code.trim().toUpperCase())

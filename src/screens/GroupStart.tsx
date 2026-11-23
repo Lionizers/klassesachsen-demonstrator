@@ -1,12 +1,28 @@
-import { useState } from 'preact/hooks'
-import { GROUP_KEY, MAX_NAME_LENGTH, SUGGESTED_NAMES, validateName, type Group } from '../group'
+import { useEffect, useState } from 'preact/hooks'
+import { GROUP_KEY, MAX_NAME_LENGTH, SUGGESTED_NAMES, nameForCode, validateName, type Group } from '../group'
 import { save } from '../store/db'
 import type { ScreenProps } from './types'
 
 export function GroupStart({ go, setGroup }: ScreenProps) {
   const [name, setName] = useState('')
+  const [code, setCode] = useState('')
+  const [codeError, setCodeError] = useState<string>()
   const [saveError, setSaveError] = useState<string>()
   const error = validateName(name)
+
+  useEffect(() => {
+    const fromQr = new URLSearchParams(location.search).get('start')
+    if (fromQr === null) return
+    // Dropped from the address, so this screen does not start the group again after its data was deleted.
+    history.replaceState(null, '', location.pathname)
+    startWith(fromQr)
+  }, [])
+
+  function startWith(startCode: string) {
+    const found = nameForCode(startCode)
+    if (found) create(found)
+    else setCodeError('Diesen Startcode gibt es nicht. Bitte prüft die Schreibweise.')
+  }
 
   async function create(groupName: string) {
     const group: Group = { name: groupName.trim(), round: 0 }
@@ -25,6 +41,18 @@ export function GroupStart({ go, setGroup }: ScreenProps) {
       <h2 id="start-title" tabIndex={-1}>Wie heißt eure Gruppe?</h2>
       {saveError && <p role="alert">{saveError}</p>}
       <p>Ihr braucht kein Konto. Wählt einen Namen für eure Gruppe.</p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          startWith(code)
+        }}
+      >
+        <label for="start-code">Startcode</label>
+        <p id="start-code-hint" class="hint">Steht auf dem Zettel eurer Lehrkraft.</p>
+        <input id="start-code" aria-describedby="start-code-hint" autoComplete="off" value={code} onInput={(e) => setCode(e.currentTarget.value)} />
+        {codeError && <p role="alert">{codeError}</p>}
+        <button type="submit">Mit Startcode starten</button>
+      </form>
       <ul aria-label="Vorschläge" class="choices">
         {SUGGESTED_NAMES.map((n) => (
           <li key={n}>

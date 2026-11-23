@@ -27,7 +27,8 @@ export type Placement = { x: number; y: number; scale: number }
 
 /** No group name, no person: the image and these fields are all that leaves the device. */
 export type ContributionMeta = { id: string; createdAt: string; type: 'item-collage'; items: string[] }
-export type Contribution = ContributionMeta & { released: boolean; png: Blob; preview: Blob }
+/** `reviewed` is set once the teacher decided, so an undecided contribution differs from a refused one. */
+export type Contribution = ContributionMeta & { released: boolean; reviewed?: boolean; png: Blob; preview: Blob }
 
 export const metaOf = ({ id, createdAt, type, items }: ContributionMeta): ContributionMeta => ({ id, createdAt, type, items })
 
