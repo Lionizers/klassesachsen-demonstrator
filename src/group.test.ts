@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_NAME_LENGTH, ROLES, SUGGESTED_NAMES, rolesFor, validateName } from './group'
+import { MAX_NAME_LENGTH, ROLES, SUGGESTED_NAMES, nameForCode, rolesFor, startCode, validateName } from './group'
 
 describe('group start', () => {
   it('AE1: offers at least 12 distinct neutral names', () => {
@@ -24,8 +24,28 @@ describe('group start', () => {
     expect(validateName('Fuchs')).toBeNull()
   })
 
+  it('reserves names starting with „Beispiel“ for the invented demo groups', () => {
+    expect(validateName('Beispiel Ahorn')).toMatch(/Beispiel/)
+    expect(validateName(' beispiel')).toMatch(/Beispiel/)
+    expect(validateName('Beispielhaft')).toBeNull()
+  })
+
   it('accepts a name of exactly the maximum length and rejects one character more', () => {
     expect(validateName('a'.repeat(MAX_NAME_LENGTH))).toBeNull()
     expect(validateName('a'.repeat(MAX_NAME_LENGTH + 1))).toMatch(/höchstens/)
+  })
+})
+
+describe('start codes', () => {
+  it('AE1: the start code is the suggested name in capitals and leads back to it', () => {
+    expect(startCode('Moosgrün')).toBe('MOOSGRÜN')
+    for (const name of SUGGESTED_NAMES) expect(nameForCode(startCode(name))).toBe(name)
+    expect(nameForCode(' otter ')).toBe('Otter')
+  })
+
+  it('AE1: accepts only suggested names, no own name and no unknown code', () => {
+    expect(nameForCode('HAMSTER')).toBeUndefined()
+    expect(nameForCode('STERNSCHNUPPEN')).toBeUndefined()
+    expect(nameForCode('')).toBeUndefined()
   })
 })

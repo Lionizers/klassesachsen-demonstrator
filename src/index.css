@@ -66,3 +66,17 @@ main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
 
 /* Every other text colour already reaches 7:1; only the success green needs a darker shade. */
 :root[data-contrast='high'] .success { color: #1a4d1e; }
+
+.site-header > button { margin-top: 0.5rem; }
+.demo { font-weight: 600; color: #6b3a00; }
+.groups li { margin: 0.75rem 0; }
+.indicators { list-style: none; padding: 0; }
+.raster { border-collapse: collapse; font-size: 0.85rem; margin: 0.5rem 0; }
+.raster caption { text-align: left; font-weight: 600; margin-bottom: 0.25rem; }
+.raster th, .raster td { border: 1px solid #555; padding: 0.3rem; vertical-align: top; text-align: left; }
+.raster td.reached { background: #e3efe4; outline: 3px solid #2b6a2f; outline-offset: -3px; }
+.codes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1rem; }
+.codes li { border: 2px dashed #555; padding: 0.5rem; break-inside: avoid; }
+@media print {
+  .site-header, button, .note { display: none; }
+}

@@ -3,7 +3,7 @@ import { PLACE_NAME, burgFunkelfels } from '../src/minigames/burg-funkelfels'
 import { MINIGAMES_KEY, type Progress, type StationStatus } from '../src/minigames/progress'
 import { CONTRIBUTIONS_KEY, type Contribution } from '../src/collage/layout'
 import { FAIL_PUT, failPut } from './fail-put'
-import { axeClean, heading, readStored, writeStored } from './helpers'
+import { api, axeClean, heading, readStored, writeStored } from './helpers'
 
 const names = burgFunkelfels.map((g) => g.reward.standard)
 const LOCKED = `Die Collage öffnet sich, wenn ihr alle Stationen bei ${PLACE_NAME} geschafft habt.`
@@ -55,24 +55,6 @@ const describeStored = (page: Page) =>
       }),
     ),
   )
-
-/** Fetches through the service worker, which only answers once it controls the page. */
-const api = (page: Page, path: string) =>
-  page.evaluate(async (p) => {
-    if (!navigator.serviceWorker.controller) {
-      await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }))
-    }
-    const response = await fetch(p)
-    const type = response.headers.get('Content-Type') ?? ''
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    return {
-      status: response.status,
-      type,
-      simulation: response.headers.get('X-Demonstrator'),
-      head: Array.from(bytes.slice(0, 4)),
-      json: type.startsWith('application/json') ? JSON.parse(new TextDecoder().decode(bytes)) : undefined,
-    }
-  }, path)
 
 const release = (page: Page) =>
   writeStored(page, CONTRIBUTIONS_KEY, (list: Contribution[] | undefined) => list!.map((c) => ({ ...c, released: true })))

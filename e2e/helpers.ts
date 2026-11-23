@@ -124,3 +124,21 @@ export const readStored = <T, R>(page: Page, key: string, fn: (value: T) => R | 
 /** Call it once the app has opened its database, or the store does not exist yet. */
 export const writeStored = <T, A>(page: Page, key: string, fn: (old: T | undefined, arg: A) => unknown, arg?: A) =>
   inStore(page, key, fn as never, arg, true)
+
+/** Fetches through the service worker, which only answers once it controls the page. */
+export const api = (page: Page, path: string) =>
+  page.evaluate(async (p) => {
+    if (!navigator.serviceWorker.controller) {
+      await new Promise((resolve) => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }))
+    }
+    const response = await fetch(p)
+    const type = response.headers.get('Content-Type') ?? ''
+    const bytes = new Uint8Array(await response.arrayBuffer())
+    return {
+      status: response.status,
+      type,
+      simulation: response.headers.get('X-Demonstrator'),
+      head: Array.from(bytes.slice(0, 4)),
+      json: type.startsWith('application/json') ? JSON.parse(new TextDecoder().decode(bytes)) : undefined,
+    }
+  }, path)
