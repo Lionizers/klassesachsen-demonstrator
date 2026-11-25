@@ -76,10 +76,19 @@ async function backToMapShows(page: Page, label: string) {
   await expect(page.getByRole('button', { name: label })).toBeVisible()
 }
 
+async function expectOpenPlaces(page: Page) {
+  const places = page.getByRole('list', { name: 'Orte' }).getByRole('button')
+  await expect(places).toHaveCount(3)
+  const names = ['Burg Funkelfels – offen', 'Kloster Krümelbach – offen', 'Mühle Wackelstein – offen']
+  for (const [i, name] of names.entries()) await expect(places.nth(i)).toHaveAccessibleName(name)
+}
+
 test('AE1: map shows three open places, none locked, and is accessible', async ({ page }) => {
   await openMap(page)
   const places = page.getByRole('list', { name: 'Orte' }).getByRole('button')
-  await expect(places).toHaveText(['Burg Funkelfels – offen', 'Kloster Krümelbach – offen', 'Mühle Wackelstein – offen'])
+  await expectOpenPlaces(page)
+  // The placeholder places carry a visible marker; the paragraph above says it for every reader.
+  await expect(page.getByRole('list', { name: 'Orte' }).getByText('Vorschau', { exact: true })).toHaveCount(2)
   for (const button of await places.all()) await expect(button).toBeEnabled()
   await expect(page.getByRole('img', { name: /Fantasiekarte/ })).toBeVisible()
   await axeClean(page)
@@ -171,11 +180,12 @@ test('AE6: denied GPS offers classroom mode, which leads to the quest', async ({
 
 test('quest AE5: Kloster Krümelbach keeps the placeholder, can be finished and stays done when reached again', async ({ page }) => {
   await openKruemelbach(page)
-  await page.getByLabel('Code vom Schild').fill('KRUEMELBACH')
+  // Typed as the name is spelled; the sign prints it without umlaut.
+  await page.getByLabel('Code vom Schild').fill('Krümelbach')
   await page.getByRole('button', { name: 'Code prüfen' }).click()
-  await expect(page.getByText('Hier entstehen weitere Minigames')).toBeVisible()
+  await expect(page.getByText('Vorschau: Hier entstehen weitere Minigames')).toBeVisible()
   await expect(stations(page)).toHaveCount(0)
-  await page.getByRole('button', { name: 'Aufgabe erledigt' }).click()
+  await page.getByRole('button', { name: 'Ort abhaken' }).click()
   await expect(page.getByRole('button', { name: 'Kloster Krümelbach – fertig' })).toBeVisible()
   await page.getByRole('button', { name: 'Kloster Krümelbach – fertig' }).click()
   await expect(page.getByRole('heading', { name: 'Kloster Krümelbach' })).toBeFocused()
@@ -255,9 +265,9 @@ test('saving the finished task fails: the place screen says so', async ({ page }
   await page.getByRole('button', { name: 'Code prüfen' }).click()
   await expect(page.getByText('Station erreicht!')).toBeVisible()
   await failPut(page)
-  await page.getByRole('button', { name: 'Aufgabe erledigt' }).click()
+  await page.getByRole('button', { name: 'Ort abhaken' }).click()
   await expect(page.getByRole('alert')).toHaveText('Der Fortschritt konnte nicht gespeichert werden.')
-  await expect(page.getByRole('button', { name: 'Aufgabe erledigt' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Ort abhaken' })).toBeVisible()
 })
 
 test('focus follows the view: map heading after "Zur Karte", place heading, map heading again', async ({ page }) => {
@@ -298,9 +308,7 @@ test('progress cannot be loaded: the map stays usable with open places', async (
   })
   await openMap(page)
   await expect(page.getByRole('alert')).toHaveText('Der Spielstand konnte nicht geladen werden.')
-  await expect(page.getByRole('list', { name: 'Orte' }).getByRole('button')).toHaveText([
-    'Burg Funkelfels – offen', 'Kloster Krümelbach – offen', 'Mühle Wackelstein – offen',
-  ])
+  await expectOpenPlaces(page)
   await page.getByRole('button', { name: 'Zurück zur Gruppe' }).click()
   await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
 })

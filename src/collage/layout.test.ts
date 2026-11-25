@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ITEM_BOX } from '../minigames/model'
-import { ARRANGEMENTS, CANVAS, layout, metaOf, seedOf, type Contribution } from './layout'
+import { ARRANGEMENTS, CANVAS, layout, metaOf, reviewLabel, seedOf, type Contribution } from './layout'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -54,5 +54,13 @@ describe('metaOf', () => {
     expect(Object.keys(meta).sort()).toEqual(['createdAt', 'id', 'items', 'type'])
     expect(meta).toEqual({ id: stored.id, createdAt: stored.createdAt, type: 'item-collage', items: ['turmuhr'] })
     expect(JSON.stringify(meta)).not.toMatch(/Otter/)
+  })
+})
+
+describe('reviewLabel', () => {
+  it('tells an undecided contribution from a refused one', () => {
+    expect(reviewLabel({ released: false })).toBe('wartet auf Freigabe durch die Lehrkraft')
+    expect(reviewLabel({ released: false, reviewed: true })).toBe('verweigert, wird nicht ausgeliefert')
+    expect(reviewLabel({ released: true, reviewed: true })).toBe('freigegeben, über /api/beitraege abrufbar')
   })
 })

@@ -13,7 +13,8 @@ export const ITEM_BOX = 32
 type Base = { id: string; title: Text; prompt: Text; hints: Text[]; reward: Text; item: ItemArt }
 /** Pieces are shown in data order; `solution` lists piece indices in the solved order. */
 export type Puzzle = Base & { kind: 'puzzle'; pieces: Text[]; solution: number[] }
-export type Estimate = Base & { kind: 'estimate'; target: number; unit: string; tolerancePercent: number }
+/** `solution` shows the way to `target` once the group's estimate counts. */
+export type Estimate = Base & { kind: 'estimate'; target: number; unit: string; tolerancePercent: number; solution: Text }
 export type DilemmaOption = { label: Text; consequence: Text }
 export type Dilemma = Base & { kind: 'dilemma'; options: [DilemmaOption, DilemmaOption] }
 export type Minigame = Puzzle | Estimate | Dilemma
@@ -32,9 +33,24 @@ export function isEstimateCorrect(game: Estimate, answer: number): boolean {
   return Math.abs(answer - game.target) * 100 <= game.target * game.tolerancePercent
 }
 
+/** The learning feedback after a counted estimate: the way to the target and how close the group was. */
+export function estimateResult(game: Estimate, answer: number): Text {
+  const diff = Math.abs(answer - game.target)
+  const said = `Eure Schätzung: ${answer.toLocaleString('de-DE')} ${game.unit}, ${diff === 0 ? 'genau getroffen!' : `nur ${diff.toLocaleString('de-DE')} daneben.`}`
+  return { standard: `${game.solution.standard} ${said}`, easy: `${game.solution.easy} ${said}` }
+}
+
 /** Three positions and two options: there is always a majority. */
 export function dilemmaOutcome(votes: Record<Role, 0 | 1>): 0 | 1 {
   return ROLES.filter((role) => votes[role] === 1).length * 2 > ROLES.length ? 1 : 0
+}
+
+/** Names the decision and its majority, never who voted how. */
+export function voteSummary(game: Dilemma, votes: Record<Role, 0 | 1>): Text {
+  const outcome = dilemmaOutcome(votes)
+  const count = `${ROLES.filter((role) => votes[role] === outcome).length} von ${ROLES.length} Stimmen`
+  const label = game.options[outcome].label
+  return { standard: `${count}: ${label.standard}`, easy: `${count}: ${label.easy}` }
 }
 
 // A dilemma shows consequences, never a verdict.
@@ -45,7 +61,7 @@ function ownTexts(game: Minigame): Text[] {
     case 'puzzle':
       return game.pieces
     case 'estimate':
-      return []
+      return [game.solution]
     case 'dilemma':
       return game.options.flatMap((o) => [o.label, o.consequence])
     default:

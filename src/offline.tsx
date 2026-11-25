@@ -124,25 +124,22 @@ export function OfflineBadge({ kb }: Pick<Offline, 'kb'>) {
   )
 }
 
-/** Details for the evaluators, out of the children's way; the storage hint stays outside the collapsed part. */
+/** Details for the evaluators, out of the children's way, the storage hint included; the summary flags it. */
 export function TechPanel({ kb, queue, error, persistDenied }: Offline) {
   return (
     <section class="tech" aria-label="Technik für Prüfer">
       <details>
-        <summary>Technik für Prüfer</summary>
+        <summary><span>Technik für Prüfer</span>{persistDenied && <span> · Hinweis zum Speicher</span>}</summary>
         <ul>
           <li>{kb === undefined ? 'Download für offline: wird ermittelt' : kb === null ? 'Download für offline: nicht messbar' : `Download für offline: ${kb.toLocaleString('de-DE')} kB`}</li>
           {queue && (
             <li>Offene Ergebnisse: {queue.pending}{queue.at !== undefined && ` · zuletzt synchronisiert ${formatTime(queue.at)}`}</li>
           )}
           <li>Sync-Ziel: lokale Simulation, kein Server</li>
+          {persistDenied && <li>Der Speicher ist nicht dauerhaft gesichert. Installiert die App auf dem Home-Bildschirm, damit der Spielstand erhalten bleibt.</li>}
         </ul>
       </details>
       {error && <p role="alert">{error}</p>}
-      {/* Always rendered: a live region must exist before its text arrives to be announced. */}
-      <p role="status">
-        {persistDenied && 'Der Speicher ist nicht dauerhaft gesichert. Installiert die App auf dem Home-Bildschirm, damit der Spielstand erhalten bleibt.'}
-      </p>
     </section>
   )
 }

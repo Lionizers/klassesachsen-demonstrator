@@ -41,6 +41,8 @@ describe('start codes', () => {
     expect(startCode('Moosgrün')).toBe('MOOSGRÜN')
     for (const name of SUGGESTED_NAMES) expect(nameForCode(startCode(name))).toBe(name)
     expect(nameForCode(' otter ')).toBe('Otter')
+    expect(nameForCode('Moosgrün')).toBe('Moosgrün')
+    expect(nameForCode('MOOSGRUEN')).toBe('Moosgrün')
   })
 
   it('AE1: accepts only suggested names, no own name and no unknown code', () => {

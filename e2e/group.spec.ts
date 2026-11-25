@@ -15,6 +15,14 @@ test('AE1/AE3: picking a suggested name creates the group and shows the roles', 
   await axeClean(page)
 })
 
+test('the demo help names a start code that starts a group', async ({ page }) => {
+  await openStart(page)
+  await expect(page.getByRole('complementary', { name: 'Demo-Hilfe' })).toContainText('Demo-Startcode: OTTER')
+  await page.getByLabel('Startcode').fill('otter')
+  await page.getByRole('button', { name: 'Mit Startcode starten' }).click()
+  await expect(page.getByRole('heading', { name: 'Gruppe Otter' })).toBeVisible()
+})
+
 test('AE2: free name entry warns against children names before saving', async ({ page }) => {
   await openStart(page)
   await expect(page.getByText('Bitte keine Namen von Kindern verwenden')).toBeVisible()

@@ -30,6 +30,12 @@ export type ContributionMeta = { id: string; createdAt: string; type: 'item-coll
 /** `reviewed` is set once the teacher decided, so an undecided contribution differs from a refused one. */
 export type Contribution = ContributionMeta & { released: boolean; reviewed?: boolean; png: Blob; preview: Blob }
 
+/** What the group and the teacher see about a contribution; only a released one leaves through the interface. */
+export function reviewLabel(c: Pick<Contribution, 'released' | 'reviewed'>): string {
+  if (!c.reviewed) return 'wartet auf Freigabe durch die Lehrkraft'
+  return c.released ? 'freigegeben, über /api/beitraege abrufbar' : 'verweigert, wird nicht ausgeliefert'
+}
+
 export const metaOf = ({ id, createdAt, type, items }: ContributionMeta): ContributionMeta => ({ id, createdAt, type, items })
 
 /** FNV-1a over the item ids, so the same selection scatters the same way on every device. */

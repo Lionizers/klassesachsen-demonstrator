@@ -4,9 +4,11 @@ import { FORBIDDEN_BRAND } from '../forbidden-brand'
 import { burgFunkelfels } from './burg-funkelfels'
 import {
   dilemmaOutcome,
+  estimateResult,
   isEstimateCorrect,
   isPuzzleSolved,
   validateMinigames,
+  voteSummary,
   type Dilemma,
   type Estimate,
   type Minigame,
@@ -17,7 +19,7 @@ const text = (s: string) => ({ standard: s, easy: s })
 const item = { at: [0, 0] as [number, number], paths: [{ d: 'M0 0h32v32H0Z', fill: '#000' }] }
 const base = { title: text('T'), prompt: text('P'), hints: [text('H')], reward: text('R'), item }
 const puzzle: Puzzle = { ...base, id: 'p', kind: 'puzzle', pieces: [text('a'), text('b'), text('c')], solution: [2, 0, 1] }
-const estimate: Estimate = { ...base, id: 'e', kind: 'estimate', target: 120, unit: 'Kekse', tolerancePercent: 10 }
+const estimate: Estimate = { ...base, id: 'e', kind: 'estimate', target: 120, unit: 'Kekse', tolerancePercent: 10, solution: text('3 × 40 = 120.') }
 const dilemma: Dilemma = {
   ...base,
   id: 'd',
@@ -112,5 +114,17 @@ describe('validateMinigames', () => {
 
   it('accepts the valid fixtures', () => {
     expect(validateMinigames([puzzle, estimate, dilemma])).toEqual([])
+  })
+})
+
+describe('feedback after a counted answer', () => {
+  it('names the way to the target and how close the estimate was', () => {
+    expect(estimateResult(estimate, 120).standard).toBe('3 × 40 = 120. Eure Schätzung: 120 Kekse, genau getroffen!')
+    expect(estimateResult(estimate, 112).standard).toBe('3 × 40 = 120. Eure Schätzung: 112 Kekse, nur 8 daneben.')
+  })
+
+  it('names the majority and the chosen option, not who voted how', () => {
+    const votes = { [ROLES[0]]: 1, [ROLES[1]]: 0, [ROLES[2]]: 1 } as Record<Role, 0 | 1>
+    expect(voteSummary(dilemma, votes).standard).toBe(`2 von 3 Stimmen: ${dilemma.options[1].label.standard}`)
   })
 })

@@ -7,8 +7,8 @@ import { collected } from '../collection/items'
 import { Fidelius } from '../fidelius'
 import { DemoSolveHelp } from '../demo/DemoHelp'
 import { ReadAloud, SettingsContext, playSuccessTone, text } from '../settings'
-import { ASK_FOR_HELP, GUIDE_NAME, PLACE_NAME, PLACE_WELCOME, burgFunkelfels as GAMES } from './burg-funkelfels'
-import { dilemmaOutcome, isEstimateCorrect, isPuzzleSolved, unreachable, type Dilemma, type Estimate, type Minigame, type Puzzle, type Text } from './model'
+import { ASK_FOR_HELP, GUIDE_NAME, PLACE_DONE, PLACE_NAME, PLACE_WELCOME, burgFunkelfels as GAMES } from './burg-funkelfels'
+import { dilemmaOutcome, estimateResult, isEstimateCorrect, isPuzzleSolved, unreachable, voteSummary, type Dilemma, type Estimate, type Minigame, type Puzzle, type Text } from './model'
 import { MINIGAMES_KEY, countEvents, initialProgress, placeState, reduceProgress, type Progress, type ProgressAction } from './progress'
 
 const STATUS_LABEL = { open: 'offen', skipped: 'später nachholen', done: 'geschafft' }
@@ -61,7 +61,7 @@ export function Place({ group, onBack, onCollage }: Props) {
   }
 
   if (result) {
-    const earned = `Du erhältst: ${text(result.game.reward, easy)}`
+    const earned = `Neues Item: ${text(result.game.reward, easy)}`
     return (
       <section aria-labelledby="result-title">
         {alert}
@@ -120,8 +120,9 @@ export function Place({ group, onBack, onCollage }: Props) {
     <section aria-labelledby="place-title">
       {alert}
       {heading}
-      <Fidelius>{text(PLACE_WELCOME, easy)}</Fidelius>
+      <Fidelius>{text(state === 'done' ? PLACE_DONE : PLACE_WELCOME, easy)}</Fidelius>
       <p>{PLACE_LABEL[state]}</p>
+      {state === 'done' && <button type="button" class="primary" onClick={onCollage}>Zur Collage</button>}
       <ItemProgress games={GAMES} found={collected(GAMES, progress)} />
       <ul aria-label="Stationen" class="tiles">
         {GAMES.map((game) => {
@@ -168,9 +169,9 @@ type StationProps = {
 function Station({ game, roles, hintsShown, attempts, apply, onDone, onBack, onSkip }: StationProps) {
   const { easy } = useContext(SettingsContext)
   const allHintsShown = hintsShown >= game.hints.length
-  const attempt = (correct: boolean) => {
+  const attempt = (correct: boolean, consequence?: Text) => {
     apply({ type: 'attempt', id: game.id, correct, at: Date.now() })
-    if (correct) onDone()
+    if (correct) onDone(consequence)
   }
 
   return (
@@ -230,7 +231,7 @@ function Station({ game, roles, hintsShown, attempts, apply, onDone, onBack, onS
   }
 }
 
-type GameViewProps<G> = { game: G; attempts: number; attempt: (correct: boolean) => void }
+type GameViewProps<G> = { game: G; attempts: number; attempt: (correct: boolean, consequence?: Text) => void }
 
 function PuzzleView({ game, attempts, attempt }: GameViewProps<Puzzle>) {
   const { easy } = useContext(SettingsContext)
@@ -370,7 +371,7 @@ function EstimateView({ game, attempts, attempt }: GameViewProps<Estimate>) {
         const answer = Number(value)
         const correct = isEstimateCorrect(game, answer)
         setFeedback(correct ? '' : `Versuch ${attempts + 1}: Eure Schätzung ist zu ${answer > game.target ? 'hoch' : 'niedrig'}. Versucht es noch einmal!`)
-        attempt(correct)
+        attempt(correct, correct ? estimateResult(game, answer) : undefined)
       }}
     >
       <label for="estimate">Eure Schätzung ({game.unit})</label>
@@ -400,9 +401,12 @@ function DilemmaView({ game, roles, apply, onDone }: DilemmaProps) {
       setVotes(next)
       return
     }
-    const outcome = dilemmaOutcome(next as Record<Role, 0 | 1>)
+    const all = next as Record<Role, 0 | 1>
+    const outcome = dilemmaOutcome(all)
     apply(voteAction, { type: 'decide', id: game.id, option: outcome, at })
-    onDone(game.options[outcome].consequence)
+    const summary = voteSummary(game, all)
+    const { consequence } = game.options[outcome]
+    onDone({ standard: `${summary.standard}. ${consequence.standard}`, easy: `${summary.easy}. ${consequence.easy}` })
   }
 
   return (

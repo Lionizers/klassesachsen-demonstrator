@@ -10,6 +10,7 @@ describe('places', () => {
   it('AE2: the place own code is reached, ignoring case and spaces', () => {
     expect(checkCode('funkelfels', 'FUNKELFELS')).toBe('reached')
     expect(checkCode('funkelfels', ' funkelfels ')).toBe('reached')
+    expect(checkCode('kruemelbach', 'Krümelbach')).toBe('reached')
   })
 
   it('AE3: another place code is wrong', () => {

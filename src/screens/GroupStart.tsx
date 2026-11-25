@@ -1,9 +1,10 @@
 import { useContext, useEffect, useState } from 'preact/hooks'
-import { GROUP_KEY, MAX_NAME_LENGTH, SUGGESTED_NAMES, nameForCode, validateName, type Group } from '../group'
+import { GROUP_KEY, MAX_NAME_LENGTH, SUGGESTED_NAMES, nameForCode, startCode as codeOf, validateName, type Group } from '../group'
 import { save } from '../store/db'
 import { SettingsContext, text } from '../settings'
 import { Fidelius } from '../fidelius'
 import { GUIDE_NAME } from '../minigames/burg-funkelfels'
+import { DemoHelp } from '../demo/DemoHelp'
 import type { ScreenProps } from './types'
 
 const GREETING = {
@@ -58,6 +59,9 @@ export function GroupStart({ go, setGroup, startCode }: ScreenProps) {
         <input id="start-code" aria-describedby="start-code-hint" autoComplete="off" value={code} onInput={(e) => setCode(e.currentTarget.value)} />
         <button type="submit">Mit Startcode starten</button>
       </form>
+      <DemoHelp>
+        <p>Demo-Startcode: <strong>{codeOf(SUGGESTED_NAMES[0])}</strong>. Oder wählt unten einen Namen.</p>
+      </DemoHelp>
       <ul aria-label="Vorschläge" class="choices">
         {SUGGESTED_NAMES.map((n) => (
           <li key={n}>

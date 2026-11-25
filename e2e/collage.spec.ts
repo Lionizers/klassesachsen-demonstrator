@@ -123,6 +123,9 @@ test('AE3/AE4/AE5: the export is a 2048 px PNG with a 512 px WebP preview and me
   expect(stored).toMatchObject({ type: 'item-collage', items: burgFunkelfels.map((g) => g.id), released: false })
   expect(stored.text).not.toMatch(/Otter/)
   await expect(collage(page).getByRole('link', { name: 'PNG herunterladen' })).toHaveAttribute('download', /\.png$/)
+  // After a reload the group still sees that the collage is saved and waits for the teacher.
+  await page.reload()
+  await expect(page.getByText(/^Eure Collage ist gespeichert \(.+\), Stand: wartet auf Freigabe durch die Lehrkraft\.$/)).toBeVisible()
 })
 
 test('AE3: a browser without WebP encoding gets a JPEG preview', async ({ page }) => {

@@ -191,6 +191,8 @@ test('AE6: only the released picture reaches the interface', async ({ page }) =>
   await expect(first.getByRole('button', { name: 'Freigeben' })).toHaveAttribute('aria-pressed', 'true')
   await expect(first.getByRole('button', { name: 'Verweigern' })).toHaveAttribute('aria-pressed', 'false')
   await expect(second.getByRole('button', { name: 'Verweigern' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByText('Beitrag 1: freigegeben, über /api/beitraege abrufbar')).toBeVisible()
+  await expect(page.getByText('Beitrag 2: verweigert, wird nicht ausgeliefert')).toBeVisible()
   await expect.poll(() => readStored(page, CONTRIBUTIONS_KEY, (l: Contribution[]) => l.map((c) => c.released))).toEqual([true, false])
   expect((await api(page, '/api/beitraege')).json).toEqual([expect.objectContaining({ id: '00000000-0000-4000-8000-00000000000a' })])
   await checkView(page)
