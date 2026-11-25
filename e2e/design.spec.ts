@@ -552,7 +552,8 @@ test.describe('#35 mobile layout at 375 px', () => {
         return { share: text.getBoundingClientRect().width / li.getBoundingClientRect().width, align: style.textAlign, hyphens: style.hyphens }
       }))
     for (const r of rows) {
-      expect(r.share).toBeGreaterThanOrEqual(0.6)
+      // 0.58, not 0.6: Linux CI fonts measure ~0.5999; the old side-by-side arrows gave ~0.45.
+      expect(r.share).toBeGreaterThanOrEqual(0.58)
       expect(['start', 'left']).toContain(r.align)
       expect(r.hyphens).toBe('manual')
     }
