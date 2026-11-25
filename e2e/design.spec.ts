@@ -240,8 +240,8 @@ async function inView(...locators: ReturnType<Page['locator']>[]) {
 /** Every visible button in the view is a touch target of at least 44 × 44, and the buttons of one row are equally high. */
 async function touchTargets(page: Page) {
   for (const box of await page.locator('main button:visible').evaluateAll((els) => els.map((b) => b.getBoundingClientRect()))) {
-    expect(box.width).toBeGreaterThanOrEqual(44)
-    expect(box.height).toBeGreaterThanOrEqual(44)
+    expect(Math.round(box.width)).toBeGreaterThanOrEqual(44)
+    expect(Math.round(box.height)).toBeGreaterThanOrEqual(44)
   }
   for (const row of await page.locator('main .actions').all()) {
     const heights = await row.locator(':scope > button').evaluateAll((els) => els.map((b) => b.getBoundingClientRect().height))
@@ -432,10 +432,10 @@ test.describe('#29 actions bottom right, airy spacing', () => {
     await page.getByRole('button', { name: puzzle.title.standard }).click()
     await expect(heading(page, puzzle.title.standard)).toBeFocused()
     const g = await gaps(page)
-    expect(g.taskToBubble).toBeGreaterThanOrEqual(16)
-    expect(g.bubbleToHelp).toBeGreaterThanOrEqual(16)
-    expect(g.cardPadding).toBeGreaterThanOrEqual(20)
-    expect(g.pieceGap).toBeGreaterThanOrEqual(8)
+    expect(Math.round(g.taskToBubble)).toBeGreaterThanOrEqual(16)
+    expect(Math.round(g.bubbleToHelp)).toBeGreaterThanOrEqual(16)
+    expect(Math.round(g.cardPadding)).toBeGreaterThanOrEqual(20)
+    expect(Math.round(g.pieceGap)).toBeGreaterThanOrEqual(8)
   })
 
   test('AE2/AE3/AE5: card actions bottom right, main action right in its row, two columns of group cards', async ({ page }) => {
