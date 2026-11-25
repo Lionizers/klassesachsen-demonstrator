@@ -14,6 +14,8 @@ async function openPuzzle(page: Page) {
   await reachPlaceFromGroup(page)
   await page.getByRole('button', { name: puzzle.title.standard }).click()
   await expect(heading(page, puzzle.title.standard)).toBeFocused()
+  // The view slides in: measure and drag only on the settled layout, not on a frame in between.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'))
 }
 
 const centre = async (locator: ReturnType<Page['locator']>) => {

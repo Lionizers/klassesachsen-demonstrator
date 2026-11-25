@@ -79,9 +79,13 @@ button[type='submit'], button.primary, .choices button { background: var(--accen
 button.primary { font-size: 1.15rem; padding: 0.5rem 1.5rem; min-height: var(--main-height); }
 /* Third weight: a quiet way out, still a full touch target. */
 button.text { background: transparent; border-color: transparent; color: var(--ink); text-decoration: underline; }
+/* Destroys data: never filled like a main action, red so it does not pass for a way on. */
+button.danger { border-color: #a4161a; color: #a4161a; }
 button:disabled { opacity: 0.55; cursor: not-allowed; }
 button[aria-pressed='true'] { background: var(--accent); color: #fff; }
 button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+/* A view moves the focus to its heading for screen readers; a heading is no control and gets no frame. */
+[tabindex='-1']:focus { outline: none; }
 input { font: inherit; padding: 0.5rem; min-height: 44px; border: 2px solid var(--muted); border-radius: 0.5rem; display: block; margin: 0.25rem 0; width: min(100%, 24rem); box-sizing: border-box; background: var(--card); color: var(--ink); }
 label { font-weight: 600; display: block; margin-top: 1rem; }
 form { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: 0.25rem 1rem 1rem; margin: 1rem 0; }
@@ -149,13 +153,13 @@ form { background: var(--card); border: var(--edge) solid var(--line); border-ra
 /* A done station is no longer a button: flat, without the card it had. */
 span.tile-main { padding: 0.25rem; }
 .tiles li.status-done:not(:has(button)) { background: var(--leaf); }
-.pill { display: inline-block; border-radius: 999px; padding: 0.1rem 0.7rem; font-size: 0.9rem; font-weight: 600; background: var(--paper); border: var(--edge) solid var(--line); color: var(--ink); }
+.pill { display: inline-block; border-radius: 1rem; padding: 0.1rem 0.7rem; font-size: 0.9rem; font-weight: 600; background: var(--paper); border: var(--edge) solid var(--line); color: var(--ink); }
 .status-started .pill, .status-skipped .pill { background: var(--sun); }
 .status-done .pill { background: var(--leaf); }
 
 /* The map with its places side by side on a tablet, stacked on a phone. */
 .map { display: grid; grid-template-columns: 3fr 2fr; gap: 1rem; align-items: start; margin: 1rem 0; }
-.map > svg { display: block; width: 100%; height: auto; border: 3px solid var(--brand); border-radius: 1rem; }
+.map > svg { display: block; width: 100%; height: auto; box-sizing: border-box; border: 3px solid var(--brand); border-radius: 1rem; }
 .map .tiles { margin: 0; grid-template-columns: 1fr; }
 @media (max-width: 40rem) { .map { grid-template-columns: 1fr; } }
 
@@ -178,7 +182,7 @@ span.tile-main { padding: 0.25rem; }
 /* Only the grip takes the finger; the rest of the list still scrolls the page. */
 .grip { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; order: -1; color: var(--muted); cursor: grab; touch-action: none; user-select: none; }
 .dragging .grip { cursor: grabbing; }
-.pieces li span:not(.grip) { flex: 1; min-width: 0; overflow-wrap: anywhere; hyphens: auto; }
+.pieces li span:not(.grip) { flex: 1; min-width: 0; overflow-wrap: break-word; hyphens: manual; }
 .pieces button { width: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 .reward { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
 .character { display: block; width: min(100%, 12rem); height: auto; margin: 0.5rem 0; background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; }
@@ -238,14 +242,38 @@ main > section { animation: view-in calc(200ms * var(--tempo)) ease-out; }
 .demo-help { border: var(--edge) dashed var(--accent); border-radius: 1rem; padding: 0.25rem 1rem 0.75rem; margin: 1.25rem 0; background: var(--card); }
 .demo-label { font-weight: 700; color: var(--accent); margin: 0.5rem 0; }
 .paths { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1rem 0; }
+.paths .sub { display: block; font-size: 0.85rem; font-weight: 400; }
 .checklist { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); gap: var(--s4); }
 .checklist.two { grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
 .checklist li { background: var(--card); border: var(--edge) solid var(--line); border-radius: 1rem; padding: var(--s4) var(--s5); display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); }
 .checklist li.seen { border-color: var(--success); }
 .checklist li.seen .pill { background: var(--leaf); }
 .checklist p { margin: 0; flex: 1; }
+.checklist h3 { margin: 0; }
+.checklist .pill { flex: none; }
 .lv { color: var(--muted); font-size: 0.9rem; }
 .role { font-weight: 600; }
 @media print {
   .demo-label { display: none; }
+}
+
+/* Phone: content before controls. One column of full-width actions, main action on top, everything on one left edge. */
+@media (max-width: 30rem) {
+  .actions, .paths { flex-direction: column; align-items: stretch; }
+  .actions > .end, .actions > .end ~ *, .actions > .primary { order: -1; margin-left: 0; }
+  .items .actions { flex-direction: row; }
+  .play > button.primary, .play form > button[type='submit'] { width: 100%; margin-left: 0; }
+  .play input { width: 100%; }
+  /* One frame is enough: the pieces are cards, the game around them is not. */
+  .play { padding: var(--s4); }
+  .play:has(.pieces) { border: 0; padding: 0; background: transparent; }
+  /* Arrows stacked in a narrow column, the text takes the rest of the row. */
+  .pieces li { display: grid; grid-template-columns: 32px auto 1fr 44px; grid-template-rows: 40px 40px; column-gap: var(--s2); row-gap: var(--s1); padding: var(--s2); }
+  .pieces li::before { grid-area: 1 / 2 / 3 / 3; align-self: center; }
+  .pieces .grip { grid-area: 1 / 1 / 3 / 2; width: 32px; height: auto; }
+  .pieces li span:not(.grip) { grid-area: 1 / 3 / 3 / 4; align-self: center; }
+  .pieces button { grid-column: 4; height: 40px; min-height: 40px; }
+  .checklist li { padding: var(--s3) var(--s4); flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: var(--s2); }
+  .checklist li > p:not(.pill), .checklist li > h3 { flex-basis: 100%; }
+  .checklist li > button { margin-top: var(--s1); }
 }
