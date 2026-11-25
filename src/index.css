@@ -144,6 +144,7 @@ form { background: var(--card); border: var(--edge) solid var(--line); border-ra
 .tile-main svg { flex: none; }
 .tile button.tile-main { border: 0; background: transparent; color: var(--ink); padding: 0.25rem; }
 .tile-name { flex: 1; overflow-wrap: anywhere; }
+.tile-note { display: block; font-size: 0.9rem; }
 .tile.status-done, .tile.status-started { border-color: var(--success); }
 /* A done station is no longer a button: flat, without the card it had. */
 span.tile-main { padding: 0.25rem; }

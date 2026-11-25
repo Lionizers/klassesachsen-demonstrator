@@ -145,8 +145,8 @@ export function PlaceView({ place, reached: alreadyReached, group, onBack, onCol
       <p role="status" class={reached ? 'success' : undefined}>{reached ? 'Station erreicht!' : message}</p>
       {reached ? (
         <>
-          <p>Hier entstehen weitere Minigames.</p>
-          <button type="button" onClick={finish}>Aufgabe erledigt</button>
+          <p>Vorschau: Hier entstehen weitere Minigames. In der Demo spielt ihr sie bei Burg Funkelfels.</p>
+          <button type="button" onClick={finish}>Ort abhaken</button>
         </>
       ) : (
         <>

@@ -37,7 +37,7 @@ test('AE1: solving the puzzle grants the item and finishes the station', async (
   await station(page, puzzle.title.standard).click()
   await axeClean(page)
   await solvePuzzle(page)
-  await expect(page.getByText(`Du erhältst: ${puzzle.reward.standard}`)).toBeVisible()
+  await expect(page.getByText(`Neues Item: ${puzzle.reward.standard}`)).toBeVisible()
   await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
   await expect(page.getByRole('listitem').filter({ hasText: puzzle.title.standard })).toContainText('geschafft')
   await expect(station(page, puzzle.title.standard)).toHaveCount(0)
@@ -54,7 +54,7 @@ test('AE2/AE3: an estimate just outside is retried, exactly on the boundary is a
   await axeClean(page)
   await input.fill(String(upper))
   await page.getByRole('button', { name: 'Prüfen' }).click()
-  await expect(page.getByText(`Du erhältst: ${estimate.reward.standard}`)).toBeVisible()
+  await expect(page.getByText(`Neues Item: ${estimate.reward.standard}`)).toBeVisible()
 })
 
 test('an empty estimate is not an attempt: "Prüfen" says what is missing', async ({ page }) => {
@@ -100,7 +100,7 @@ test('AE6: a skipped station can be resumed later, also after a reload', async (
   await expect(page.getByText('Angefangen')).toBeVisible()
   await station(page, puzzle.title.standard).click()
   await solvePuzzle(page)
-  await expect(page.getByText(`Du erhältst: ${puzzle.reward.standard}`)).toBeVisible()
+  await expect(page.getByText(`Neues Item: ${puzzle.reward.standard}`)).toBeVisible()
 })
 
 test('AE5: a hint request is stored as event E5 at group level', async ({ page }) => {
@@ -251,8 +251,20 @@ test('quest AE3: all three minigames solved shows the place as done on the map',
   await solveEstimate(page)
   await solveDilemma(page)
   await expect(page.getByText('Alle Stationen geschafft!')).toBeVisible()
+  // The next step is named on the place and on the map, not left to guessing.
+  await expect(page.getByRole('button', { name: 'Zur Collage' })).toBeVisible()
   await backToMap(page)
   await expect(mapButton(page)).toHaveText(`${PLACE_NAME} – fertig`)
+  await page.getByRole('button', { name: 'Zur Collage' }).click()
+  await expect(page.getByRole('heading', { name: 'Collage' })).toBeFocused()
+})
+
+test('the estimate result shows the way to the target and how close the group was', async ({ page }) => {
+  await enterPlace(page)
+  await station(page, estimate.title.standard).click()
+  await page.getByLabel(`Eure Schätzung (${estimate.unit})`).fill('115')
+  await page.getByRole('button', { name: 'Prüfen' }).click()
+  await expect(page.getByText(`${estimate.solution.standard} Eure Schätzung: 115 Kekse, nur 5 daneben.`)).toBeVisible()
 })
 
 test('quest AE4: a skipped minigame keeps the place started, not done', async ({ page }) => {

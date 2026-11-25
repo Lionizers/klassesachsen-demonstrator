@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import { PLACES, type Place, type PlaceId } from '../places/places'
+import { MINIGAME_PLACE, PLACES, type Place, type PlaceId } from '../places/places'
 import { loadProgress, withMinigameStatus, type Progress, type Status } from '../places/progress'
 import { MINIGAMES_KEY, type Progress as GameProgress } from '../minigames/progress'
 import { load, save } from '../store/db'
@@ -100,7 +100,13 @@ export function PlaceMap({ go, group }: ScreenProps) {
     <section aria-labelledby="map-title">
       <h2 id="map-title" tabIndex={-1}>Karte der Spielregion</h2>
       {error && <p role="alert">{error}</p>}
-      <p>Wählt einen Ort. Die Reihenfolge ist frei.</p>
+      <p>Wählt einen Ort. Die Reihenfolge ist frei. In der Demo gibt es Minigames bei Burg Funkelfels; Kloster und Mühle sind eine Vorschau.</p>
+      {progress[MINIGAME_PLACE] === 'done' && (
+        <>
+          <p>Eure Items sind beisammen. Gestaltet daraus eine Collage.</p>
+          <button type="button" class="primary" onClick={() => go('collection', 'collage')}>Zur Collage</button>
+        </>
+      )}
       <div class="map">
         <MapArt />
         <ul aria-label="Orte" class="tiles">
@@ -110,7 +116,11 @@ export function PlaceMap({ go, group }: ScreenProps) {
               <li key={p.id} class={`tile status-${status}`}>
                 <button type="button" class="tile-main" onClick={() => show(p)}>
                   <svg viewBox="-24 -44 48 48" width="56" height="56" aria-hidden="true">{BUILDINGS[p.id]}</svg>
-                  <span class="tile-name">{p.name}</span>
+                  <span class="tile-name">
+                    {p.name}
+                    {/* Visual marker only; the paragraph above says the same for every reader. */}
+                    {p.id !== MINIGAME_PLACE && <span class="hint tile-note" aria-hidden="true">Vorschau</span>}
+                  </span>
                   {/* Read as one name, "Burg Funkelfels – offen"; the dash is only for the ear. */}
                   <span class="visually-hidden"> – </span>
                   <span class="pill">{STATUS_LABEL[status]}</span>

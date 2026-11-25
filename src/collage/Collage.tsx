@@ -4,7 +4,7 @@ import type { Minigame } from '../minigames/model'
 import { SettingsContext, text } from '../settings'
 import { load, save } from '../store/db'
 import { drawCollage } from './draw'
-import { ARRANGEMENTS, CANVAS, CONTRIBUTIONS_KEY, MOODS, PREVIEW, SIZES, seedOf, type Contribution, type Settings } from './layout'
+import { ARRANGEMENTS, CANVAS, CONTRIBUTIONS_KEY, MOODS, PREVIEW, SIZES, reviewLabel, seedOf, type Contribution, type Settings } from './layout'
 
 const SLIDERS = [
   { key: 'arrangement', label: 'Anordnung', steps: ARRANGEMENTS },
@@ -31,6 +31,7 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
   const [busy, setBusy] = useState(false)
   const [download, setDownload] = useState<string>()
   const [error, setError] = useState<string>()
+  const [last, setLast] = useState<Contribution>()
   const canvas = useRef<HTMLCanvasElement>(null)
   const { easy } = useContext(SettingsContext)
   const name = (item: Minigame) => text(item.reward, easy)
@@ -41,6 +42,10 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
     if (ctx) drawCollage(ctx, chosen.map((item) => item.item), settings, seedOf(selected))
   }, [selected, settings])
   useEffect(() => () => download && URL.revokeObjectURL(download), [download])
+  // After a reload the group still sees that its collage is saved and where it stands.
+  useEffect(() => {
+    load<Contribution[]>(CONTRIBUTIONS_KEY).then((list) => setLast(list?.at(-1)), () => setError('Die gespeicherten Beiträge konnten nicht geladen werden.'))
+  }, [])
 
   const title = <h3 id="collage-title" tabIndex={-1}>Collage</h3>
   if (!unlocked) {
@@ -70,6 +75,7 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
         preview: await previewOf(canvas.current!),
       }
       await save(CONTRIBUTIONS_KEY, [...((await load<Contribution[]>(CONTRIBUTIONS_KEY)) ?? []), contribution])
+      setLast(contribution)
       setDownload(URL.createObjectURL(png))
       setError(undefined)
     } catch {
@@ -93,7 +99,9 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
       </fieldset>
       {SLIDERS.map(({ key, label, steps }) => (
         <label key={key}>
-          {label}
+          {label}{' '}
+          {/* The name stays "Anordnung" while sliding; the value is read through aria-valuetext. */}
+          <span class="hint" aria-hidden="true">{steps[settings[key]].label}</span>
           <input
             type="range"
             min={0}
@@ -122,6 +130,11 @@ export function Collage({ items, unlocked }: { items: Minigame[]; unlocked: bool
         {download && <a href={download} download="collage.png">PNG herunterladen</a>}
       </div>
       <p role="status">{download && 'Gespeichert. Die Lehrkraft kann den Beitrag freigeben.'}</p>
+      {last && !download && (
+        <p>
+          Eure Collage ist gespeichert ({new Date(last.createdAt).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}), Stand: {reviewLabel(last)}.
+        </p>
+      )}
     </section>
   )
 }

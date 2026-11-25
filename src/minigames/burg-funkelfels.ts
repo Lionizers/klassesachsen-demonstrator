@@ -7,6 +7,11 @@ export const PLACE_WELCOME: Text = {
   standard: 'Willkommen am Burgtor! Wählt eine Station, die Reihenfolge ist euch überlassen.',
   easy: 'Willkommen an der Burg! Sucht euch eine Station aus. Ihr dürft anfangen, wo ihr wollt.',
 }
+/** What the guide says once every station of the place is done: the next step is the collage. */
+export const PLACE_DONE: Text = {
+  standard: 'Stark! Gestaltet jetzt aus euren Items eine Collage.',
+  easy: 'Toll! Jetzt macht ihr ein Bild aus euren Items.',
+}
 /** What the guide says on a station before the group asked for a hint. */
 export const ASK_FOR_HELP: Text = { standard: 'Kommt ihr nicht weiter? Fragt mich um Hilfe.', easy: 'Ihr wisst nicht weiter? Fragt mich.' }
 
@@ -66,6 +71,10 @@ export const burgFunkelfels: Minigame[] = [
     target: 120,
     unit: 'Kekse',
     tolerancePercent: 10,
+    solution: {
+      standard: 'Eine Lage hat etwa 40 Kekse, drei Lagen haben also 3 × 40 = 120 Kekse.',
+      easy: 'Eine Lage hat 40 Kekse. 3 Lagen sind 3 × 40 = 120 Kekse.',
+    },
     hints: [
       { standard: 'Zählt zuerst, wie viele Kekse in eine Lage passen.', easy: 'Wie viele Kekse sind in einer Lage?' },
       {

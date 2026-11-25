@@ -127,7 +127,7 @@ test('AE5: an earned item gets a big picture with a burst; slow tempo doubles it
   expect((await moment.locator('svg.item').boundingBox())!.width).toBeGreaterThanOrEqual(96)
   // The rays stay above the sentence, so its text is never drawn over them.
   const burst = (await moment.locator('.burst').boundingBox())!
-  expect(burst.y + burst.height).toBeLessThanOrEqual((await moment.getByText(/^Du erhältst:/).boundingBox())!.y)
+  expect(burst.y + burst.height).toBeLessThanOrEqual((await moment.getByText(/^Neues Item:/).boundingBox())!.y)
   const normal = await animations(page, '.earned, .earned .burst')
   expect(normal).toHaveLength(2)
   for (const a of normal) expect(a.name).not.toBe('none')
@@ -352,7 +352,7 @@ test.describe('#27 station and teacher view on an iPad', () => {
     await page.reload()
     await page.getByRole('button', { name: 'Lehrkräfte-Ansicht' }).click()
     await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
-    await expect(page.getByText('Gruppen der Klasse (1 von 12 gewählt)')).toBeVisible()
+    await expect(page.getByText('Gruppen der Klasse für die Startcodes (1 von 12 gewählt)')).toBeVisible()
     await expect(picker).toBeHidden()
     // Printing the codes stays reachable with the picker closed.
     await expect(page.getByRole('button', { name: 'Startcodes drucken' })).toBeVisible()

@@ -101,8 +101,9 @@ test('AE1: the result reads the dilemma consequence and the earned item on their
   await reachPlaceFromGroup(page)
   await openStation(page, dilemma.title.standard)
   await voteDilemma(page)
-  const consequence = dilemma.options[0].consequence.standard
-  const earned = `Du erhältst: ${dilemma.reward.standard}`
+  // The result names the majority first, never who voted how.
+  const consequence = `3 von 3 Stimmen: ${dilemma.options[0].label.standard}. ${dilemma.options[0].consequence.standard}`
+  const earned = `Neues Item: ${dilemma.reward.standard}`
   await readText(page, consequence).click()
   await readText(page, earned).click()
   expect((await spoken(page)).map((u) => u.text)).toEqual([consequence, earned])
@@ -149,7 +150,7 @@ test('AE3: easy language also names the earned item, on the result and in the co
   await page.getByLabel('Einfache Sprache').check()
   await reachPlaceFromGroup(page)
   await solveEstimate(page, 'easy')
-  await expect(page.getByText(`Du erhältst: ${estimate.reward.easy}`, { exact: true })).toBeVisible()
+  await expect(page.getByText(`Neues Item: ${estimate.reward.easy}`, { exact: true })).toBeVisible()
   await backToStations(page)
   await openCollectionFromStations(page)
   await expect(page.getByRole('button', { name: `${estimate.reward.easy} tragen` })).toBeVisible()

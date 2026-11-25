@@ -5,7 +5,7 @@ import { focusHeading } from '../focus'
 import { SETTINGS_KEY } from '../settings'
 import { PLACE_NAME, burgFunkelfels as GAMES } from '../minigames/burg-funkelfels'
 import { MINIGAMES_KEY, demoSolvedIds, initialProgress, placeState, type Progress } from '../minigames/progress'
-import { CONTRIBUTIONS_KEY, type Contribution } from '../collage/layout'
+import { CONTRIBUTIONS_KEY, reviewLabel, type Contribution } from '../collage/layout'
 import { DEMO_GROUPS } from '../teacher/demo'
 import { INDICATORS, LEVELS, RETENTION_WEEKS, indicators, isExpired } from '../teacher/report'
 import { useQrCodes } from '../qr-codes'
@@ -231,7 +231,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
           })}
         </ul>
         <details class="picker" open={data.pickerOpen}>
-          <summary>Gruppen der Klasse ({chosen.length} von {SUGGESTED_NAMES.length} gewählt)</summary>
+          <summary>Gruppen der Klasse für die Startcodes ({chosen.length} von {SUGGESTED_NAMES.length} gewählt)</summary>
           <div role="group" aria-label="Gruppen der Klasse" class="class-tiles">
             {SUGGESTED_NAMES.map((name) => (
               <button key={name} type="button" aria-pressed={chosen.includes(name)} onClick={() => toggleClass(name)}>{name}</button>
@@ -280,6 +280,7 @@ function Contributions({ list, decide }: { list: Contribution[]; decide: (id: st
             <button type="button" aria-pressed={!!c.reviewed && c.released} onClick={() => decide(c.id, true)}>Freigeben</button>
             <button type="button" aria-pressed={!!c.reviewed && !c.released} onClick={() => decide(c.id, false)}>Verweigern</button>
           </div>
+          <p role="status">Beitrag {i + 1}: {reviewLabel(c)}</p>
         </li>
       ))}
     </ul>

@@ -12,7 +12,11 @@ export const PLACES: Place[] = [
   { id: 'wackelstein', name: 'Mühle Wackelstein', code: 'WACKELSTEIN', lat: -0.002, lon: 0.001, x: 30, y: 78 },
 ]
 
+/** Codes are printed without umlauts, but children type the name as they know it ("Krümelbach"); ß already becomes SS. */
+export const normalizeCode = (code: string) =>
+  code.trim().toUpperCase().replace(/Ä/g, 'AE').replace(/Ö/g, 'OE').replace(/Ü/g, 'UE')
+
 export function checkCode(placeId: PlaceId, code: string): 'reached' | 'wrong' {
   const place = PLACES.find((p) => p.id === placeId)
-  return place && code.trim().toUpperCase() === place.code ? 'reached' : 'wrong'
+  return place && normalizeCode(code) === place.code ? 'reached' : 'wrong'
 }

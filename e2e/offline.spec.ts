@@ -66,7 +66,7 @@ test('AE2/AE4/AE5: offline the map and all three minigames work, results queue u
   await station(page, estimate.title.standard).click()
   await page.getByLabel(`Eure Schätzung (${estimate.unit})`).fill(String(estimate.target))
   await page.getByRole('button', { name: 'Prüfen' }).click()
-  await expect(page.getByText(`Du erhältst: ${estimate.reward.standard}`)).toBeVisible()
+  await expect(page.getByText(`Neues Item: ${estimate.reward.standard}`)).toBeVisible()
   await page.getByRole('button', { name: `Zurück zur Übersicht von ${PLACE_NAME}` }).click()
 
   await station(page, dilemma.title.standard).click()
@@ -119,12 +119,14 @@ test('AE3: a reopened place the group has not reached yet still asks for its che
   await expect(page.getByRole('list', { name: 'Stationen' })).toHaveCount(0)
 })
 
-test('AE6: storage persistence refused: "Technik für Prüfer" asks to install the app, also while its details are closed', async ({ page }) => {
+test('AE6: storage persistence refused: closed "Technik für Prüfer" flags it, the install hint is inside, out of the children\'s way', async ({ page }) => {
   await page.addInitScript(() => { StorageManager.prototype.persist = async () => false })
   await openStart(page)
   const tech = page.getByRole('region', { name: 'Technik für Prüfer' })
-  await expect(tech.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
-  await expect(tech.locator('details')).not.toHaveAttribute('open')
+  await expect(tech.locator('summary')).toHaveText('Technik für Prüfer · Hinweis zum Speicher')
+  await expect(tech.getByText(/Installiert die App auf dem Home-Bildschirm/)).toBeHidden()
+  await tech.getByText('Technik für Prüfer', { exact: true }).click()
+  await expect(tech.getByText(/Installiert die App auf dem Home-Bildschirm/)).toBeVisible()
 })
 
 test('AE6: storage persistence granted: no install hint', async ({ page }) => {
@@ -213,6 +215,6 @@ test('the offline cache cannot be measured and persist() fails: calm messages, n
   })
   await openStart(page)
   await expect(page.getByRole('status').filter({ hasText: 'Der Offline-Speicher konnte nicht geprüft werden.' })).toBeVisible()
-  await expect(page.getByRole('status').filter({ hasText: /Installiert die App auf dem Home-Bildschirm/ })).toBeVisible()
+  await expect(page.locator('summary')).toHaveText('Technik für Prüfer · Hinweis zum Speicher')
   expect(errors).toEqual([])
 })
