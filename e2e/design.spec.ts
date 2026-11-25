@@ -389,6 +389,8 @@ test.describe('#27 station on a phone', () => {
       await expect(heading(page, PLACE_NAME)).toBeFocused()
     }
     await solveEstimate(page)
+    // The earned item scales in; measure the settled layout.
+    await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== 'running'))
     for (const reader of await page.locator('main section button.read-aloud').all()) {
       await expect(reader).toHaveAccessibleName(/ vorlesen$/)
       const box = (await reader.boundingBox())!
@@ -532,5 +534,55 @@ test.describe('#29 on a phone', () => {
     await expect(heading(page, 'Lehrkräfte-Ansicht')).toBeFocused()
     const xs = await page.getByRole('list', { name: 'Gruppen' }).getByRole('listitem').evaluateAll((els) => els.map((li) => li.getBoundingClientRect().left))
     expect(new Set(xs).size).toBe(1)
+  })
+})
+
+test.describe('#35 mobile layout at 375 px', () => {
+  test.use({ viewport: { width: 375, height: 667 } })
+
+  test('U1: a puzzle piece gives its text at least 60 % of the row, left-aligned, without hyphenation', async ({ page }) => {
+    await startGroup(page)
+    await reachPlaceFromGroup(page)
+    await page.getByRole('button', { name: puzzle.title.standard }).click()
+    await expect(heading(page, puzzle.title.standard)).toBeFocused()
+    const rows = await page.locator('.pieces li').evaluateAll((els) =>
+      els.map((li) => {
+        const text = li.querySelector('span:not(.grip)')!
+        const style = getComputedStyle(text)
+        return { share: text.getBoundingClientRect().width / li.getBoundingClientRect().width, align: style.textAlign, hyphens: style.hyphens }
+      }))
+    for (const r of rows) {
+      expect(r.share).toBeGreaterThanOrEqual(0.6)
+      expect(['start', 'left']).toContain(r.align)
+      expect(r.hyphens).toBe('manual')
+    }
+    for (const b of await page.locator('.pieces button').all()) {
+      const box = (await b.boundingBox())!
+      // Rounded: the grid splits the row into sub-pixel heights.
+      expect(Math.round(box.width)).toBeGreaterThanOrEqual(44)
+      expect(Math.round(box.height)).toBeGreaterThanOrEqual(40)
+    }
+  })
+
+  test('U4/U5: a view change shows no frame around the heading; actions stand in one column, main action first', async ({ page }) => {
+    await startGroup(page)
+    const title = page.getByRole('heading', { name: 'Gruppe Otter', exact: true })
+    await expect(title).toBeFocused()
+    // Headless Chromium does not set :focus-visible after a scripted focus; a real browser does, so force it.
+    const cdp = await page.context().newCDPSession(page)
+    await cdp.send('DOM.enable')
+    const { root } = await cdp.send('DOM.getDocument')
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: 'main h2' })
+    await cdp.send('CSS.enable')
+    await cdp.send('CSS.forcePseudoState', { nodeId, forcedPseudoClasses: ['focus', 'focus-visible'] })
+    expect(await title.evaluate((h) => getComputedStyle(h).outlineStyle)).toBe('none')
+    const r = await page.locator('main .actions').first().evaluate((el) => {
+      const kids = Array.from(el.querySelectorAll(':scope > button')).map((b) => ({ name: b.textContent!.trim(), box: b.getBoundingClientRect() }))
+      kids.sort((a, b) => a.box.top - b.box.top)
+      return { first: kids[0].name, lefts: new Set(kids.map((k) => Math.round(k.box.left))).size, widths: new Set(kids.map((k) => Math.round(k.box.width))).size }
+    })
+    expect(r.first).toBe('Zur Karte')
+    expect(r.lefts).toBe(1)
+    expect(r.widths).toBe(1)
   })
 })

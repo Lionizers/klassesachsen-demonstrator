@@ -70,7 +70,7 @@ export function Welcome({ go, group, setGroup, openSettings }: ScreenProps) {
       <Fidelius>{text(PURPOSE, settings.easy)}</Fidelius>
       <p class="demo">Alle Inhalte sind erfunden. Orte, Figuren und Aufgaben dienen nur der Vorführung.</p>
       <div class="paths">
-        <button type="button" class="primary" onClick={() => go(playScreen(group))}>Als Schulgruppe spielen (ca. 5 Minuten)</button>
+        <button type="button" class="primary" onClick={() => go(playScreen(group))}>Als Schulgruppe spielen <span class="sub">(ca. 5 Minuten)</span></button>
         <button type="button" class="primary" onClick={() => go('teacher')}>Als Lehrkraft ansehen</button>
       </div>
       <h3>Prüfliste: So erfüllt die Demo die Ausschreibung</h3>

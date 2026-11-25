@@ -191,7 +191,7 @@ export function Teacher({ go, group, setGroup }: ScreenProps) {
             )}
             <h3>Daten löschen</h3>
             <p>Löscht sofort alle Daten dieser Gruppe auf diesem Gerät. Ohne Löschen geschieht das {RETENTION_WEEKS} Wochen nach Abschluss der Quest oder nach der letzten Aktivität, spätestens am 1. August zum Ende des Schuljahres.</p>
-            <button type="button" onClick={() => deleteGroup(row.name)}>Daten der Gruppe löschen</button>
+            <button type="button" class="danger" onClick={() => deleteGroup(row.name)}>Daten der Gruppe löschen</button>
           </>
         )}
       </>
